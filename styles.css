@@ -13,6 +13,8 @@
   --gray: #3a3a3c;
   --shadow: rgba(0, 0, 0, 0.4);
   --radius: 10px;
+  --tileSize: 62px;
+  --tileGap: 8px;
   --font: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji",
     "Segoe UI Emoji";
 }
@@ -83,12 +85,12 @@ body {
 }
 
 .board {
-  width: min(380px, 100%);
+  width: min(620px, 100%);
 }
 
 .history {
   display: grid;
-  gap: 8px;
+  gap: var(--tileGap);
   margin-bottom: 10px;
 }
 
@@ -116,13 +118,13 @@ body {
 .grid {
   display: grid;
   grid-template-rows: repeat(5, 1fr);
-  gap: 8px;
+  gap: var(--tileGap);
 }
 
 .row {
   display: grid;
-  grid-template-columns: repeat(5, 1fr);
-  gap: 8px;
+  gap: var(--tileGap);
+  justify-content: center;
 }
 
 .status {
@@ -133,7 +135,8 @@ body {
 }
 
 .tile {
-  aspect-ratio: 1 / 1;
+  width: var(--tileSize);
+  height: var(--tileSize);
   border: 2px solid var(--tileBorder);
   border-radius: 8px;
   display: grid;
@@ -305,7 +308,50 @@ body {
   display: none;
 }
 
+.celebration {
+  display: grid;
+  place-items: center;
+  gap: 10px;
+}
+
+.celebrationText {
+  margin: 0;
+  font-weight: 800;
+  color: var(--fg);
+}
+
+.confettiLayer {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  overflow: hidden;
+  z-index: 50;
+}
+
+.confettiPiece {
+  position: absolute;
+  top: -10px;
+  width: 8px;
+  height: 12px;
+  opacity: 0.9;
+  animation: confettiFall 1400ms linear forwards;
+}
+
+@keyframes confettiFall {
+  0% {
+    transform: translateY(0) rotate(0deg);
+  }
+  100% {
+    transform: translateY(105vh) rotate(720deg);
+    opacity: 0.1;
+  }
+}
+
 @media (max-width: 420px) {
+  :root {
+    --tileSize: 44px;
+    --tileGap: 6px;
+  }
   .tile {
     font-size: 24px;
   }

@@ -34,9 +34,15 @@
           <div class="keyboard__row" id="kbRow2"></div>
           <div class="keyboard__row" id="kbRow3"></div>
         </section>
+
+        <section class="celebration hiddenSection" id="celebrationSection" aria-live="polite">
+          <p class="celebrationText">Chain complete!</p>
+          <button class="primaryButton" id="chainPlayAgainBtn" type="button">Play again</button>
+        </section>
       </main>
 
       <div class="toast" id="toast" role="status" aria-live="polite" aria-atomic="true"></div>
+      <div class="confettiLayer" id="confettiLayer" aria-hidden="true"></div>
 
       <div class="modalOverlay hidden" id="modalOverlay" aria-hidden="true">
         <div class="modal" role="dialog" aria-modal="true" aria-labelledby="modalTitle">

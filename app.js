@@ -1,8 +1,9 @@
 import { ANSWERS } from "./words.js";
 
-const WORD_LEN = 5;
 const MAX_GUESSES = 5;
 const TARGET_WINS = 3;
+const MIN_WORD_LEN = 3;
+const MAX_WORD_LEN = 8;
 
 /** @typedef {"empty"|"active"|"green"|"yellow"|"gray"} TileState */
 
@@ -11,6 +12,9 @@ const chainDividerEl = document.getElementById("chainDivider");
 const gridEl = document.getElementById("grid");
 const statusTextEl = document.getElementById("statusText");
 const keyboardSectionEl = document.getElementById("keyboardSection");
+const celebrationSectionEl = document.getElementById("celebrationSection");
+const chainPlayAgainBtn = document.getElementById("chainPlayAgainBtn");
+const confettiLayerEl = document.getElementById("confettiLayer");
 const toastEl = document.getElementById("toast");
 const hintBtn = document.getElementById("hintBtn");
 const newGameBtn = document.getElementById("newGameBtn");
@@ -27,10 +31,11 @@ const kbRow3 = document.getElementById("kbRow3");
 
 /** @type {string} */
 let answer = "";
+let currentWordLen = 5;
 /** @type {string[]} */
 let guesses = Array.from({ length: MAX_GUESSES }, () => "");
 /** @type {TileState[][]} */
-let marks = Array.from({ length: MAX_GUESSES }, () => Array.from({ length: WORD_LEN }, () => "empty"));
+let marks = Array.from({ length: MAX_GUESSES }, () => Array.from({ length: currentWordLen }, () => "empty"));
 /** @type {string[]} */
 let solvedWords = [];
 let row = 0;
@@ -41,12 +46,23 @@ let chainComplete = false;
 /** @type {Map<string, HTMLButtonElement>} */
 const keyButtons = new Map();
 /** @type {Set<string>} */
-let validWords = new Set(ANSWERS);
+let validWords = new Set(ANSWERS.map((w) => w.toLowerCase()));
+/** @type {Map<number, string[]>} */
+let wordsByLength = new Map();
 let dictionaryReady = false;
 
 function pickAnswer() {
-  const idx = Math.floor(Math.random() * ANSWERS.length);
-  return ANSWERS[idx];
+  const availableLengths = [];
+  for (let len = MIN_WORD_LEN; len <= MAX_WORD_LEN; len++) {
+    if ((wordsByLength.get(len) || []).length > 0) availableLengths.push(len);
+  }
+  if (availableLengths.length === 0) {
+    const fallback = ANSWERS[Math.floor(Math.random() * ANSWERS.length)];
+    return fallback.toLowerCase();
+  }
+  const chosenLen = availableLengths[Math.floor(Math.random() * availableLengths.length)];
+  const pool = wordsByLength.get(chosenLen) || [];
+  return pool[Math.floor(Math.random() * pool.length)];
 }
 
 function normalizeKey(key) {
@@ -68,18 +84,34 @@ showToast._t = 0;
 
 async function loadDictionary() {
   try {
-    const res = await fetch("./words5.txt", { cache: "no-store" });
+    const res = await fetch("./words3to8.txt", { cache: "no-store" });
     if (!res.ok) throw new Error("bad status");
     const text = await res.text();
     const words = text
       .split(/\r?\n/)
       .map((w) => w.trim().toLowerCase())
-      .filter((w) => /^[a-z]{5}$/.test(w));
+      .filter((w) => /^[a-z]{3,8}$/.test(w));
     validWords = new Set(words);
+    wordsByLength = new Map();
+    for (let len = MIN_WORD_LEN; len <= MAX_WORD_LEN; len++) wordsByLength.set(len, []);
+    for (const w of words) {
+      const pool = wordsByLength.get(w.length);
+      if (pool) pool.push(w);
+    }
     dictionaryReady = true;
+    // Refresh the current round so the first game also uses 3-8 length answers.
+    if (solvedWords.length === 0 && row === 0 && guesses[0] === "") {
+      prepareNextRound();
+    }
   } catch {
-    // Keep minimal fallback so game remains playable.
-    validWords = new Set(ANSWERS);
+    validWords = new Set(ANSWERS.map((w) => w.toLowerCase()));
+    wordsByLength = new Map();
+    for (let len = MIN_WORD_LEN; len <= MAX_WORD_LEN; len++) wordsByLength.set(len, []);
+    for (const w of ANSWERS.map((x) => x.toLowerCase())) {
+      if (w.length >= MIN_WORD_LEN && w.length <= MAX_WORD_LEN) {
+        wordsByLength.get(w.length).push(w);
+      }
+    }
     dictionaryReady = true;
   }
 }
@@ -94,18 +126,19 @@ async function loadDictionary() {
  * @returns {TileState[]}
  */
 function scoreGuess(guessLower, answerLower) {
+  const len = answerLower.length;
   /** @type {TileState[]} */
-  const out = Array.from({ length: WORD_LEN }, () => "gray");
+  const out = Array.from({ length: len }, () => "gray");
 
   /** @type {Record<string, number>} */
   const remaining = {};
-  for (let i = 0; i < WORD_LEN; i++) {
+  for (let i = 0; i < len; i++) {
     const a = answerLower[i];
     remaining[a] = (remaining[a] ?? 0) + 1;
   }
 
   // Pass 1: greens
-  for (let i = 0; i < WORD_LEN; i++) {
+  for (let i = 0; i < len; i++) {
     if (guessLower[i] === answerLower[i]) {
       out[i] = "green";
       remaining[guessLower[i]] -= 1;
@@ -113,7 +146,7 @@ function scoreGuess(guessLower, answerLower) {
   }
 
   // Pass 2: yellows
-  for (let i = 0; i < WORD_LEN; i++) {
+  for (let i = 0; i < len; i++) {
     if (out[i] === "green") continue;
     const g = guessLower[i];
     if ((remaining[g] ?? 0) > 0) {
@@ -160,7 +193,8 @@ function closeModal() {
 function buildSolvedRow(word) {
   const rowEl = document.createElement("div");
   rowEl.className = "row";
-  for (let c = 0; c < WORD_LEN; c++) {
+  rowEl.style.gridTemplateColumns = `repeat(${word.length}, var(--tileSize))`;
+  for (let c = 0; c < word.length; c++) {
     const tile = document.createElement("div");
     tile.className = "tile";
     tile.dataset.state = "purple";
@@ -184,13 +218,14 @@ function renderHistory() {
   chainDividerEl.dataset.show = "false";
 }
 
-function buildGrid() {
+function buildGrid(wordLen) {
   gridEl.innerHTML = "";
   for (let r = 0; r < MAX_GUESSES; r++) {
     const rowEl = document.createElement("div");
     rowEl.className = "row";
     rowEl.dataset.row = String(r);
-    for (let c = 0; c < WORD_LEN; c++) {
+    rowEl.style.gridTemplateColumns = `repeat(${wordLen}, var(--tileSize))`;
+    for (let c = 0; c < wordLen; c++) {
       const tile = document.createElement("div");
       tile.className = "tile";
       tile.dataset.row = String(r);
@@ -236,7 +271,7 @@ function getTile(r, c) {
 function render() {
   for (let r = 0; r < MAX_GUESSES; r++) {
     const g = guesses[r];
-    for (let c = 0; c < WORD_LEN; c++) {
+    for (let c = 0; c < currentWordLen; c++) {
       const tile = getTile(r, c);
       if (!tile) continue;
       tile.textContent = g[c] ? g[c].toUpperCase() : "";
@@ -253,14 +288,15 @@ function render() {
   if (winsLeft <= 0) {
     statusTextEl.textContent = "Chain complete";
   } else {
-    statusTextEl.textContent = `Round ${solvedWords.length + 1}/${TARGET_WINS} - Guesses left: ${guessesLeft}`;
+    statusTextEl.textContent = `Round ${solvedWords.length + 1}/${TARGET_WINS} - ${currentWordLen} letters - Guesses left: ${guessesLeft}`;
   }
 }
 
 function prepareNextRound() {
   answer = pickAnswer();
+  currentWordLen = answer.length;
   guesses = Array.from({ length: MAX_GUESSES }, () => "");
-  marks = Array.from({ length: MAX_GUESSES }, () => Array.from({ length: WORD_LEN }, () => "empty"));
+  marks = Array.from({ length: MAX_GUESSES }, () => Array.from({ length: currentWordLen }, () => "empty"));
   row = 0;
   col = 0;
   isOver = false;
@@ -271,6 +307,7 @@ function prepareNextRound() {
   for (const btn of keyButtons.values()) {
     delete btn.dataset.state;
   }
+  buildGrid(currentWordLen);
   renderHistory();
   render();
 }
@@ -281,18 +318,37 @@ function finishChain() {
   gridEl.classList.add("hiddenSection");
   statusTextEl.classList.add("hiddenSection");
   keyboardSectionEl.classList.add("hiddenSection");
+  celebrationSectionEl.classList.remove("hiddenSection");
   renderHistory();
-  openModal("Chain complete", `You solved all ${TARGET_WINS} words.`);
+  launchConfetti();
+}
+
+function launchConfetti() {
+  confettiLayerEl.innerHTML = "";
+  const colors = ["#7c4dff", "#b59f3b", "#538d4e", "#7dd3fc", "#fca5a5", "#f9a8d4"];
+  const count = 100;
+  for (let i = 0; i < count; i++) {
+    const piece = document.createElement("span");
+    piece.className = "confettiPiece";
+    piece.style.left = `${Math.random() * 100}%`;
+    piece.style.background = colors[Math.floor(Math.random() * colors.length)];
+    piece.style.animationDelay = `${Math.random() * 500}ms`;
+    piece.style.transform = `translateY(0) rotate(${Math.random() * 360}deg)`;
+    confettiLayerEl.appendChild(piece);
+  }
+  window.setTimeout(() => {
+    confettiLayerEl.innerHTML = "";
+  }, 2200);
 }
 
 async function commitGuess() {
   const guessLower = guesses[row].toLowerCase();
-  if (guessLower.length !== WORD_LEN) {
+  if (guessLower.length < currentWordLen) {
     showToast("Not enough letters");
     return;
   }
-  if (!/^[a-z]{5}$/.test(guessLower)) {
-    showToast("Use 5 letters (A–Z)");
+  if (!new RegExp(`^[a-z]{${currentWordLen}}$`).test(guessLower)) {
+    showToast(`Use ${currentWordLen} letters (A-Z)`);
     return;
   }
   if (!dictionaryReady) {
@@ -307,7 +363,7 @@ async function commitGuess() {
 
   const scored = scoreGuess(guessLower, answer);
   marks[row] = scored;
-  for (let i = 0; i < WORD_LEN; i++) {
+  for (let i = 0; i < currentWordLen; i++) {
     setKeyState(guessLower[i].toUpperCase(), scored[i]);
   }
 
@@ -355,8 +411,8 @@ function handleInput(key) {
   }
 
   if (/^[A-Z]$/.test(key)) {
-    if (col >= WORD_LEN) return;
-    guesses[row] = (guesses[row] + key).slice(0, WORD_LEN);
+    if (col >= currentWordLen) return;
+    guesses[row] = (guesses[row] + key).slice(0, currentWordLen);
     col = guesses[row].length;
     render();
   }
@@ -365,16 +421,18 @@ function handleInput(key) {
 function resetChain() {
   solvedWords = [];
   closeModal();
+  confettiLayerEl.innerHTML = "";
+  celebrationSectionEl.classList.add("hiddenSection");
   prepareNextRound();
 }
 
 // Init
-buildGrid();
 buildKeyboard();
 resetChain();
 loadDictionary();
 
 newGameBtn.addEventListener("click", resetChain);
+chainPlayAgainBtn.addEventListener("click", resetChain);
 playAgainBtn.addEventListener("click", resetChain);
 closeModalBtn.addEventListener("click", closeModal);
 modalOverlay.addEventListener("click", (e) => {

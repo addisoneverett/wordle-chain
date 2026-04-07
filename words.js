@@ -1,5 +1,5 @@
-// Small starter lists. You can expand these anytime.
-// All words are lowercase 5-letter strings.
+// Small starter fallback list.
+// Main gameplay dictionary is loaded from words3to8.txt.
 
 export const ANSWERS = [
   "about",
