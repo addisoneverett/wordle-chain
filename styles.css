@@ -109,6 +109,7 @@ body {
   border-radius: 999px;
   font-weight: 700;
   cursor: pointer;
+  touch-action: manipulation;
 }
 
 .iconButton:hover {
@@ -127,6 +128,7 @@ body {
   padding: 8px 12px;
   font-weight: 700;
   cursor: pointer;
+  touch-action: manipulation;
 }
 
 .answerFab:hover {
@@ -280,6 +282,7 @@ body {
   text-transform: uppercase;
   overflow: hidden;
   text-overflow: clip;
+  touch-action: manipulation;
 }
 
 .key[data-wide="true"] {
