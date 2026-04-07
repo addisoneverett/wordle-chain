@@ -53,8 +53,8 @@ let row = 0;
 let col = 0;
 let isOver = false;
 let chainComplete = false;
-let currentMode = "medium";
-let hintsLeft = DIFFICULTY.medium.hints;
+let currentMode = "easy";
+let hintsLeft = DIFFICULTY.easy.hints;
 let hintsUsed = 0;
 let guessesUsedTotal = 0;
 
