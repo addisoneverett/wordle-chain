@@ -1,7 +1,7 @@
 import { ANSWERS } from "./words.js";
+import { WORD_CHAINS } from "./wordChains.js";
 
 const MAX_GUESSES = 5;
-const TARGET_WINS = 3;
 const MIN_WORD_LEN = 3;
 const MAX_WORD_LEN = 8;
 
@@ -38,6 +38,8 @@ let guesses = Array.from({ length: MAX_GUESSES }, () => "");
 let marks = Array.from({ length: MAX_GUESSES }, () => Array.from({ length: currentWordLen }, () => "empty"));
 /** @type {string[]} */
 let solvedWords = [];
+/** @type {string[]} */
+let currentChain = [];
 let row = 0;
 let col = 0;
 let isOver = false;
@@ -52,17 +54,12 @@ let wordsByLength = new Map();
 let dictionaryReady = false;
 
 function pickAnswer() {
-  const availableLengths = [];
-  for (let len = MIN_WORD_LEN; len <= MAX_WORD_LEN; len++) {
-    if ((wordsByLength.get(len) || []).length > 0) availableLengths.push(len);
-  }
-  if (availableLengths.length === 0) {
-    const fallback = ANSWERS[Math.floor(Math.random() * ANSWERS.length)];
-    return fallback.toLowerCase();
-  }
-  const chosenLen = availableLengths[Math.floor(Math.random() * availableLengths.length)];
-  const pool = wordsByLength.get(chosenLen) || [];
-  return pool[Math.floor(Math.random() * pool.length)];
+  return currentChain[solvedWords.length];
+}
+
+function pickChain() {
+  const idx = Math.floor(Math.random() * WORD_CHAINS.length);
+  return WORD_CHAINS[idx].map((w) => w.toLowerCase());
 }
 
 function normalizeKey(key) {
@@ -98,6 +95,9 @@ async function loadDictionary() {
       const pool = wordsByLength.get(w.length);
       if (pool) pool.push(w);
     }
+    for (const chain of WORD_CHAINS) {
+      for (const w of chain) validWords.add(w.toLowerCase());
+    }
     dictionaryReady = true;
     // Refresh the current round so the first game also uses 3-8 length answers.
     if (solvedWords.length === 0 && row === 0 && guesses[0] === "") {
@@ -111,6 +111,9 @@ async function loadDictionary() {
       if (w.length >= MIN_WORD_LEN && w.length <= MAX_WORD_LEN) {
         wordsByLength.get(w.length).push(w);
       }
+    }
+    for (const chain of WORD_CHAINS) {
+      for (const w of chain) validWords.add(w.toLowerCase());
     }
     dictionaryReady = true;
   }
@@ -283,12 +286,13 @@ function render() {
     }
   }
 
-  const winsLeft = TARGET_WINS - solvedWords.length;
+  const targetWins = currentChain.length;
+  const winsLeft = targetWins - solvedWords.length;
   const guessesLeft = MAX_GUESSES - row;
   if (winsLeft <= 0) {
     statusTextEl.textContent = "Chain complete";
   } else {
-    statusTextEl.textContent = `Round ${solvedWords.length + 1}/${TARGET_WINS} - ${currentWordLen} letters - Guesses left: ${guessesLeft}`;
+    statusTextEl.textContent = `Round ${solvedWords.length + 1}/${targetWins} - ${currentWordLen} letters - Guesses left: ${guessesLeft}`;
   }
 }
 
@@ -372,7 +376,7 @@ async function commitGuess() {
   if (guessLower === answer) {
     solvedWords.push(answer);
     renderHistory();
-    if (solvedWords.length >= TARGET_WINS) {
+    if (solvedWords.length >= currentChain.length) {
       finishChain();
       return;
     }
@@ -420,6 +424,7 @@ function handleInput(key) {
 
 function resetChain() {
   solvedWords = [];
+  currentChain = pickChain();
   closeModal();
   confettiLayerEl.innerHTML = "";
   celebrationSectionEl.classList.add("hiddenSection");

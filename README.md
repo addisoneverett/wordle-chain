@@ -24,9 +24,14 @@ Edit `words.js`:
 - `ANSWERS`: possible secret words
 - Guesses must match the current round length (3-8 letters, A-Z).
 
+Word-chain rounds are defined in:
+- `wordChains.js` (4-6 words per chain, adjacent words form common phrases)
+
 ## Word validation
 This clone rejects guesses that aren’t real English words using a bundled local dictionary:
 - `words3to8.txt` (generated from macOS `/usr/share/dict/words`, lengths 3-8)
+
+All words from `wordChains.js` are automatically added to valid guesses.
 
 No backend API is required.
 
