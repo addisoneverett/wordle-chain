@@ -20,10 +20,13 @@
 
       <main class="main">
         <section class="board" aria-label="Board">
+          <div class="history" id="history" aria-label="Solved words"></div>
+          <div class="chainDivider" id="chainDivider" aria-hidden="true"></div>
           <div class="grid" id="grid" aria-label="Guesses grid"></div>
+          <p class="status" id="statusText" aria-live="polite"></p>
         </section>
 
-        <section class="keyboard" aria-label="Keyboard">
+        <section class="keyboard" id="keyboardSection" aria-label="Keyboard">
           <div class="keyboard__row" id="kbRow1"></div>
           <div class="keyboard__row" id="kbRow2"></div>
           <div class="keyboard__row" id="kbRow3"></div>

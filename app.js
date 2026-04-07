@@ -1,11 +1,16 @@
 import { ANSWERS } from "./words.js";
 
 const WORD_LEN = 5;
-const MAX_GUESSES = 6;
+const MAX_GUESSES = 5;
+const TARGET_WINS = 3;
 
 /** @typedef {"empty"|"active"|"green"|"yellow"|"gray"} TileState */
 
+const historyEl = document.getElementById("history");
+const chainDividerEl = document.getElementById("chainDivider");
 const gridEl = document.getElementById("grid");
+const statusTextEl = document.getElementById("statusText");
+const keyboardSectionEl = document.getElementById("keyboardSection");
 const toastEl = document.getElementById("toast");
 const newGameBtn = document.getElementById("newGameBtn");
 
@@ -25,9 +30,12 @@ let answer = "";
 let guesses = Array.from({ length: MAX_GUESSES }, () => "");
 /** @type {TileState[][]} */
 let marks = Array.from({ length: MAX_GUESSES }, () => Array.from({ length: WORD_LEN }, () => "empty"));
+/** @type {string[]} */
+let solvedWords = [];
 let row = 0;
 let col = 0;
 let isOver = false;
+let chainComplete = false;
 
 /** @type {Map<string, HTMLButtonElement>} */
 const keyButtons = new Map();
@@ -120,6 +128,7 @@ function scoreGuess(guessLower, answerLower) {
 
 function statePriority(state) {
   // Higher number wins.
+  if (state === "purple") return 4;
   if (state === "green") return 3;
   if (state === "yellow") return 2;
   if (state === "gray") return 1;
@@ -145,6 +154,27 @@ function openModal(title, body) {
 function closeModal() {
   modalOverlay.classList.add("hidden");
   modalOverlay.setAttribute("aria-hidden", "true");
+}
+
+function buildSolvedRow(word) {
+  const rowEl = document.createElement("div");
+  rowEl.className = "row";
+  for (let c = 0; c < WORD_LEN; c++) {
+    const tile = document.createElement("div");
+    tile.className = "tile";
+    tile.dataset.state = "purple";
+    tile.textContent = word[c].toUpperCase();
+    rowEl.appendChild(tile);
+  }
+  return rowEl;
+}
+
+function renderHistory() {
+  historyEl.innerHTML = "";
+  for (const word of solvedWords) {
+    historyEl.appendChild(buildSolvedRow(word));
+  }
+  chainDividerEl.dataset.show = solvedWords.length > 0 && !chainComplete ? "true" : "false";
 }
 
 function buildGrid() {
@@ -203,15 +233,49 @@ function render() {
       const tile = getTile(r, c);
       if (!tile) continue;
       tile.textContent = g[c] ? g[c].toUpperCase() : "";
-
       let state = marks[r][c];
-      // Only show "active" styling on the current row while it's unscored.
-      if (r === row && !isOver && state === "empty") {
+      if (!isOver && r === row && state === "empty") {
         state = g[c] ? "active" : "empty";
       }
       tile.dataset.state = state;
     }
   }
+
+  const winsLeft = TARGET_WINS - solvedWords.length;
+  const guessesLeft = MAX_GUESSES - row;
+  if (winsLeft <= 0) {
+    statusTextEl.textContent = "Chain complete";
+  } else {
+    statusTextEl.textContent = `Round ${solvedWords.length + 1}/${TARGET_WINS} - Guesses left: ${guessesLeft}`;
+  }
+}
+
+function prepareNextRound() {
+  answer = pickAnswer();
+  guesses = Array.from({ length: MAX_GUESSES }, () => "");
+  marks = Array.from({ length: MAX_GUESSES }, () => Array.from({ length: WORD_LEN }, () => "empty"));
+  row = 0;
+  col = 0;
+  isOver = false;
+  chainComplete = false;
+  gridEl.classList.remove("hiddenSection");
+  statusTextEl.classList.remove("hiddenSection");
+  keyboardSectionEl.classList.remove("hiddenSection");
+  for (const btn of keyButtons.values()) {
+    delete btn.dataset.state;
+  }
+  renderHistory();
+  render();
+}
+
+function finishChain() {
+  isOver = true;
+  chainComplete = true;
+  gridEl.classList.add("hiddenSection");
+  statusTextEl.classList.add("hiddenSection");
+  keyboardSectionEl.classList.add("hiddenSection");
+  renderHistory();
+  openModal("Chain complete", `You solved all ${TARGET_WINS} words.`);
 }
 
 async function commitGuess() {
@@ -243,19 +307,28 @@ async function commitGuess() {
   render();
 
   if (guessLower === answer) {
-    isOver = true;
-    openModal("You win", "Nice! You guessed the word.");
-    return;
-  }
-
-  if (row === MAX_GUESSES - 1) {
-    isOver = true;
-    openModal("You lose", `The word was ${answer.toUpperCase()}.`);
+    solvedWords.push(answer);
+    renderHistory();
+    if (solvedWords.length >= TARGET_WINS) {
+      finishChain();
+      return;
+    }
+    showToast("Correct! Next word...", 900);
+    setTimeout(() => {
+      prepareNextRound();
+    }, 500);
     return;
   }
 
   row += 1;
+  if (row >= MAX_GUESSES) {
+    isOver = true;
+    openModal("You lose", `The word was ${answer.toUpperCase()}. Chain reset.`);
+    return;
+  }
+
   col = 0;
+  render();
 }
 
 function handleInput(key) {
@@ -268,8 +341,7 @@ function handleInput(key) {
 
   if (key === "BACKSPACE") {
     if (col === 0 && guesses[row].length === 0) return;
-    const g = guesses[row];
-    guesses[row] = g.slice(0, -1);
+    guesses[row] = guesses[row].slice(0, -1);
     col = guesses[row].length;
     render();
     return;
@@ -283,30 +355,20 @@ function handleInput(key) {
   }
 }
 
-function resetGame() {
-  answer = pickAnswer();
-  guesses = Array.from({ length: MAX_GUESSES }, () => "");
-  marks = Array.from({ length: MAX_GUESSES }, () => Array.from({ length: WORD_LEN }, () => "empty"));
-  row = 0;
-  col = 0;
-  isOver = false;
+function resetChain() {
+  solvedWords = [];
   closeModal();
-
-  for (const btn of keyButtons.values()) {
-    delete btn.dataset.state;
-  }
-
-  render();
+  prepareNextRound();
 }
 
 // Init
 buildGrid();
 buildKeyboard();
-resetGame();
+resetChain();
 loadDictionary();
 
-newGameBtn.addEventListener("click", resetGame);
-playAgainBtn.addEventListener("click", resetGame);
+newGameBtn.addEventListener("click", resetChain);
+playAgainBtn.addEventListener("click", resetChain);
 closeModalBtn.addEventListener("click", closeModal);
 modalOverlay.addEventListener("click", (e) => {
   if (e.target === modalOverlay) closeModal();

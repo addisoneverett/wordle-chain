@@ -8,6 +8,7 @@
   --key: #818384;
   --keyFg: #ffffff;
   --green: #538d4e;
+  --purple: #7c4dff;
   --yellow: #b59f3b;
   --gray: #3a3a3c;
   --shadow: rgba(0, 0, 0, 0.4);
@@ -85,9 +86,28 @@ body {
   width: min(380px, 100%);
 }
 
+.history {
+  display: grid;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.chainDivider {
+  width: 84px;
+  height: 2px;
+  margin: 4px auto 12px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.28);
+  display: none;
+}
+
+.chainDivider[data-show="true"] {
+  display: block;
+}
+
 .grid {
   display: grid;
-  grid-template-rows: repeat(6, 1fr);
+  grid-template-rows: repeat(5, 1fr);
   gap: 8px;
 }
 
@@ -95,6 +115,13 @@ body {
   display: grid;
   grid-template-columns: repeat(5, 1fr);
   gap: 8px;
+}
+
+.status {
+  margin: 10px 0 0;
+  text-align: center;
+  color: var(--muted);
+  font-weight: 700;
 }
 
 .tile {
@@ -118,6 +145,11 @@ body {
 .tile[data-state="green"] {
   background: var(--green);
   border-color: var(--green);
+}
+
+.tile[data-state="purple"] {
+  background: var(--purple);
+  border-color: var(--purple);
 }
 
 .tile[data-state="yellow"] {
@@ -169,6 +201,10 @@ body {
 
 .key[data-state="green"] {
   background: var(--green);
+}
+
+.key[data-state="purple"] {
+  background: var(--purple);
 }
 
 .key[data-state="yellow"] {
@@ -255,6 +291,10 @@ body {
   border: 1px solid rgba(255, 255, 255, 0.18);
   background: transparent;
   color: var(--fg);
+}
+
+.hiddenSection {
+  display: none;
 }
 
 @media (max-width: 420px) {
