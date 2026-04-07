@@ -92,9 +92,17 @@ body {
   margin-bottom: 10px;
 }
 
+.chainConnector {
+  width: 2px;
+  height: 26px;
+  margin: -2px auto 2px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.28);
+}
+
 .chainDivider {
-  width: 84px;
-  height: 2px;
+  width: 2px;
+  height: 26px;
   margin: 4px auto 12px;
   border-radius: 999px;
   background: rgba(255, 255, 255, 0.28);

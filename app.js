@@ -12,6 +12,7 @@ const gridEl = document.getElementById("grid");
 const statusTextEl = document.getElementById("statusText");
 const keyboardSectionEl = document.getElementById("keyboardSection");
 const toastEl = document.getElementById("toast");
+const hintBtn = document.getElementById("hintBtn");
 const newGameBtn = document.getElementById("newGameBtn");
 
 const modalOverlay = document.getElementById("modalOverlay");
@@ -171,10 +172,16 @@ function buildSolvedRow(word) {
 
 function renderHistory() {
   historyEl.innerHTML = "";
-  for (const word of solvedWords) {
-    historyEl.appendChild(buildSolvedRow(word));
+  for (let i = 0; i < solvedWords.length; i++) {
+    historyEl.appendChild(buildSolvedRow(solvedWords[i]));
+    if (i < solvedWords.length - 1) {
+      const connector = document.createElement("div");
+      connector.className = "chainConnector";
+      connector.setAttribute("aria-hidden", "true");
+      historyEl.appendChild(connector);
+    }
   }
-  chainDividerEl.dataset.show = solvedWords.length > 0 && !chainComplete ? "true" : "false";
+  chainDividerEl.dataset.show = "false";
 }
 
 function buildGrid() {
@@ -380,4 +387,9 @@ window.addEventListener("keydown", (e) => {
   if (!k) return;
   e.preventDefault();
   handleInput(k);
+});
+
+hintBtn.addEventListener("click", () => {
+  if (chainComplete) return;
+  showToast(`Hint: ${answer.toUpperCase()}`, 1600);
 });
