@@ -31,11 +31,21 @@ const mobileHintBtn = document.getElementById("mobileHintBtn");
 const answerBtn = document.getElementById("answerBtn");
 const newGameBtn = document.getElementById("newGameBtn");
 
+const howToOverlay = document.getElementById("howToOverlay");
+const howToDismissBtn = document.getElementById("howToDismissBtn");
 const modalOverlay = document.getElementById("modalOverlay");
 const modalTitle = document.getElementById("modalTitle");
 const modalBody = document.getElementById("modalBody");
 const playAgainBtn = document.getElementById("playAgainBtn");
 const closeModalBtn = document.getElementById("closeModalBtn");
+
+const HOW_TO_STORAGE_KEY = "wordleChainHowToDismissed";
+
+/** On localhost, skip saving/reading “seen how-to” so refresh always shows it while you build. */
+function isLocalDevHost() {
+  const h = location.hostname;
+  return h === "localhost" || h === "127.0.0.1" || h === "[::1]";
+}
 
 const kbRow1 = document.getElementById("kbRow1");
 const kbRow2 = document.getElementById("kbRow2");
@@ -218,6 +228,35 @@ function openModal(title, body) {
 function closeModal() {
   modalOverlay.classList.add("hidden");
   modalOverlay.setAttribute("aria-hidden", "true");
+}
+
+function isHowToOpen() {
+  return howToOverlay && !howToOverlay.classList.contains("hidden");
+}
+
+function dismissHowTo() {
+  if (!howToOverlay) return;
+  howToOverlay.classList.add("hidden");
+  howToOverlay.setAttribute("aria-hidden", "true");
+  if (isLocalDevHost()) return;
+  try {
+    localStorage.setItem(HOW_TO_STORAGE_KEY, "1");
+  } catch {
+    /* ignore quota / private mode */
+  }
+}
+
+function maybeShowHowTo() {
+  if (!howToOverlay) return;
+  if (!isLocalDevHost()) {
+    try {
+      if (localStorage.getItem(HOW_TO_STORAGE_KEY) === "1") return;
+    } catch {
+      /* unreadable storage: show how-to */
+    }
+  }
+  howToOverlay.classList.remove("hidden");
+  howToOverlay.setAttribute("aria-hidden", "false");
 }
 
 function buildSolvedRow(word) {
@@ -466,6 +505,7 @@ async function commitGuess() {
 }
 
 function handleInput(key) {
+  if (isHowToOpen()) return;
   if (isOver) return;
 
   if (key === "ENTER") {
@@ -508,6 +548,7 @@ function resetChain() {
 buildKeyboard();
 resetChain();
 loadDictionary();
+maybeShowHowTo();
 
 newGameBtn.addEventListener("click", resetChain);
 chainPlayAgainBtn.addEventListener("click", resetChain);
@@ -517,7 +558,19 @@ modalOverlay.addEventListener("click", (e) => {
   if (e.target === modalOverlay) closeModal();
 });
 
+howToDismissBtn?.addEventListener("click", dismissHowTo);
+howToOverlay?.addEventListener("click", (e) => {
+  if (e.target === howToOverlay) dismissHowTo();
+});
+
 window.addEventListener("keydown", (e) => {
+  if (isHowToOpen()) {
+    if (e.key === "Escape") {
+      e.preventDefault();
+      dismissHowTo();
+    }
+    return;
+  }
   if (e.metaKey || e.ctrlKey || e.altKey) return;
   const k = normalizeKey(e.key);
   if (!k) return;

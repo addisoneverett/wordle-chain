@@ -58,6 +58,31 @@
       <div class="confettiLayer" id="confettiLayer" aria-hidden="true"></div>
       <button class="answerFab" id="answerBtn" type="button" aria-label="Show answer" title="Show answer">Answer</button>
 
+      <div class="modalOverlay howToOverlay hidden" id="howToOverlay" aria-hidden="true">
+        <div class="modal howToModal" role="dialog" aria-modal="true" aria-labelledby="howToTitle">
+          <h2 class="modal__title" id="howToTitle">How to play</h2>
+          <div class="howToBody">
+            <p>Guess each word in 5 tries.</p>
+            <p>Each completed word and the next word go together like a known pair.</p>
+            <p class="howToExamplesLabel">Examples:</p>
+            <div class="chainExamplePairs" role="presentation">
+              <div class="chainExamplePair">
+                <p class="chainWords">coffee → table → lamp</p>
+                <p class="chainPhrases">coffee table, table lamp</p>
+              </div>
+              <div class="chainExamplePair">
+                <p class="chainWords">ice → cream → soda</p>
+                <p class="chainPhrases">ice cream, cream soda</p>
+              </div>
+            </div>
+            <p>Work through the words in order. Solve the whole chain to win!</p>
+          </div>
+          <div class="modal__actions howToActions">
+            <button class="primaryButton" id="howToDismissBtn" type="button">Got it</button>
+          </div>
+        </div>
+      </div>
+
       <div class="modalOverlay hidden" id="modalOverlay" aria-hidden="true">
         <div class="modal" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
           <h2 class="modal__title" id="modalTitle">Game over</h2>

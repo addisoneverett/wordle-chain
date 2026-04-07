@@ -343,6 +343,11 @@ body {
   display: none;
 }
 
+.howToOverlay {
+  z-index: 60;
+  background: rgba(0, 0, 0, 0.55);
+}
+
 .modal {
   width: min(420px, 100%);
   background: #1b1b1c;
@@ -350,6 +355,107 @@ body {
   border-radius: var(--radius);
   box-shadow: 0 20px 60px var(--shadow);
   padding: 16px;
+}
+
+/* How-to dialog: must beat `.modal` (same element has both classes; `.modal` comes first in cascade). */
+.modal.howToModal {
+  width: min(420px, 100%);
+  max-height: min(88vh, 100%);
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  background: #1b1b1c;
+  color: rgba(248, 248, 248, 0.92);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: var(--radius);
+  box-shadow: 0 20px 60px var(--shadow);
+  padding: 24px 22px 20px;
+}
+
+.modal.howToModal .modal__title {
+  margin: 0 0 16px;
+  font-size: 20px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  color: var(--fg);
+}
+
+.modal.howToModal .howToBody {
+  margin: 0 0 20px;
+  color: rgba(248, 248, 248, 0.88);
+  font-size: 15px;
+  line-height: 1.5;
+}
+
+.modal.howToModal .howToBody > p {
+  margin: 0 0 12px;
+}
+
+.modal.howToModal .howToBody > p:last-child {
+  margin-bottom: 0;
+}
+
+.modal.howToModal .howToExamplesLabel {
+  margin-bottom: 8px !important;
+  font-weight: 700;
+  color: var(--fg);
+}
+
+.modal.howToModal .chainExamplePairs {
+  margin: 0 0 16px;
+  padding: 14px 16px;
+  background: var(--tile);
+  border-radius: var(--radius);
+  border: 1px solid var(--tileBorder);
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.modal.howToModal .chainExamplePair {
+  margin: 0;
+}
+
+.modal.howToModal .chainExamplePair .chainWords,
+.modal.howToModal .chainExamplePair .chainPhrases {
+  margin: 0;
+}
+
+.modal.howToModal .chainWords {
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  font-size: 15px;
+  color: #f8f8f8;
+}
+
+.modal.howToModal .chainPhrases {
+  margin-top: 6px !important;
+  color: var(--muted);
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.modal.howToModal .howToActions {
+  justify-content: stretch;
+}
+
+.modal.howToModal .howToActions .primaryButton {
+  flex: 1;
+  border-radius: 999px;
+  padding: 12px 18px;
+  font-weight: 700;
+  font-size: 15px;
+  border: 0;
+  background: #6aaa64;
+  color: #ffffff;
+  box-shadow: none;
+}
+
+.modal.howToModal .howToActions .primaryButton:hover {
+  filter: brightness(1.08);
+}
+
+.modal.howToModal .howToActions .primaryButton:active {
+  filter: brightness(0.94);
 }
 
 .modal__title {
