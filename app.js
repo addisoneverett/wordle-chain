@@ -4,19 +4,28 @@ import { WORD_CHAINS } from "./wordChains.js";
 const MAX_GUESSES = 5;
 const MIN_WORD_LEN = 3;
 const MAX_WORD_LEN = 8;
+const DIFFICULTY = {
+  easy: { chainLen: 4, minLen: 3, maxLen: 5, hints: 5 },
+  medium: { chainLen: 5, minLen: 4, maxLen: 6, hints: 3 },
+  hard: { chainLen: 6, minLen: 5, maxLen: 8, hints: 1 },
+};
 
 /** @typedef {"empty"|"active"|"green"|"yellow"|"gray"} TileState */
 
 const historyEl = document.getElementById("history");
 const chainDividerEl = document.getElementById("chainDivider");
+const difficultySelectEl = document.getElementById("difficultySelect");
 const gridEl = document.getElementById("grid");
 const statusTextEl = document.getElementById("statusText");
 const keyboardSectionEl = document.getElementById("keyboardSection");
 const celebrationSectionEl = document.getElementById("celebrationSection");
+const starRatingEl = document.getElementById("starRating");
+const ratingMetaEl = document.getElementById("ratingMeta");
 const chainPlayAgainBtn = document.getElementById("chainPlayAgainBtn");
 const confettiLayerEl = document.getElementById("confettiLayer");
 const toastEl = document.getElementById("toast");
 const hintBtn = document.getElementById("hintBtn");
+const answerBtn = document.getElementById("answerBtn");
 const newGameBtn = document.getElementById("newGameBtn");
 
 const modalOverlay = document.getElementById("modalOverlay");
@@ -44,6 +53,10 @@ let row = 0;
 let col = 0;
 let isOver = false;
 let chainComplete = false;
+let currentMode = "medium";
+let hintsLeft = DIFFICULTY.medium.hints;
+let hintsUsed = 0;
+let guessesUsedTotal = 0;
 
 /** @type {Map<string, HTMLButtonElement>} */
 const keyButtons = new Map();
@@ -57,9 +70,19 @@ function pickAnswer() {
   return currentChain[solvedWords.length];
 }
 
+function getModeConfig() {
+  return DIFFICULTY[currentMode] || DIFFICULTY.medium;
+}
+
 function pickChain() {
-  const idx = Math.floor(Math.random() * WORD_CHAINS.length);
-  return WORD_CHAINS[idx].map((w) => w.toLowerCase());
+  const cfg = getModeConfig();
+  const candidates = WORD_CHAINS.filter((chain) => {
+    if (chain.length !== cfg.chainLen) return false;
+    return chain.every((w) => w.length >= cfg.minLen && w.length <= cfg.maxLen);
+  });
+  const pool = candidates.length > 0 ? candidates : WORD_CHAINS;
+  const idx = Math.floor(Math.random() * pool.length);
+  return pool[idx].map((w) => w.toLowerCase());
 }
 
 function normalizeKey(key) {
@@ -218,7 +241,7 @@ function renderHistory() {
       historyEl.appendChild(connector);
     }
   }
-  chainDividerEl.dataset.show = "false";
+  chainDividerEl.dataset.show = solvedWords.length > 0 && !chainComplete ? "true" : "false";
 }
 
 function buildGrid(wordLen) {
@@ -292,7 +315,7 @@ function render() {
   if (winsLeft <= 0) {
     statusTextEl.textContent = "Chain complete";
   } else {
-    statusTextEl.textContent = `Round ${solvedWords.length + 1}/${targetWins} - ${currentWordLen} letters - Guesses left: ${guessesLeft}`;
+    statusTextEl.textContent = `Mode: ${currentMode.toUpperCase()} - Round ${solvedWords.length + 1}/${targetWins} - ${currentWordLen} letters - Guesses left: ${guessesLeft} - Hints left: ${hintsLeft}`;
   }
 }
 
@@ -316,6 +339,43 @@ function prepareNextRound() {
   render();
 }
 
+function computeStarResult() {
+  const cfg = getModeConfig();
+  const maxGuesses = cfg.chainLen * MAX_GUESSES;
+  const maxHints = Math.max(1, cfg.hints);
+  const guessRatio = Math.min(1, guessesUsedTotal / maxGuesses);
+  const hintRatio = Math.min(1, hintsUsed / maxHints);
+
+  const modeWeights = {
+    easy: { guessW: 0.6, hintW: 0.4, bonus: 0.0 },
+    medium: { guessW: 0.65, hintW: 0.35, bonus: 0.1 },
+    hard: { guessW: 0.7, hintW: 0.3, bonus: 0.25 },
+  };
+  const w = modeWeights[currentMode] || modeWeights.medium;
+  const penalty = guessRatio * w.guessW + hintRatio * w.hintW;
+  const starsFloat = Math.max(1, Math.min(5, 5 - penalty * 4.5 + w.bonus));
+  const stars = Math.max(1, Math.min(5, Math.round(starsFloat)));
+  return { stars, starsFloat };
+}
+
+function renderStarRating() {
+  const { stars, starsFloat } = computeStarResult();
+  starRatingEl.innerHTML = "";
+  for (let i = 0; i < 5; i++) {
+    const star = document.createElement("span");
+    star.className = "star";
+    star.textContent = "★";
+    if (i < stars) {
+      star.dataset.on = "true";
+      star.style.animationDelay = `${i * 120}ms`;
+    } else {
+      star.dataset.on = "false";
+    }
+    starRatingEl.appendChild(star);
+  }
+  ratingMetaEl.textContent = `${stars}/5 stars (${starsFloat.toFixed(1)}) - guesses: ${guessesUsedTotal}, hints used: ${hintsUsed}`;
+}
+
 function finishChain() {
   isOver = true;
   chainComplete = true;
@@ -323,6 +383,7 @@ function finishChain() {
   statusTextEl.classList.add("hiddenSection");
   keyboardSectionEl.classList.add("hiddenSection");
   celebrationSectionEl.classList.remove("hiddenSection");
+  renderStarRating();
   renderHistory();
   launchConfetti();
 }
@@ -364,6 +425,8 @@ async function commitGuess() {
     showToast("Not a real word");
     return;
   }
+
+  guessesUsedTotal += 1;
 
   const scored = scoreGuess(guessLower, answer);
   marks[row] = scored;
@@ -423,11 +486,17 @@ function handleInput(key) {
 }
 
 function resetChain() {
+  currentMode = difficultySelectEl.value || "medium";
+  hintsLeft = getModeConfig().hints;
+  hintsUsed = 0;
+  guessesUsedTotal = 0;
   solvedWords = [];
   currentChain = pickChain();
   closeModal();
   confettiLayerEl.innerHTML = "";
   celebrationSectionEl.classList.add("hiddenSection");
+  starRatingEl.innerHTML = "";
+  ratingMetaEl.textContent = "";
   prepareNextRound();
 }
 
@@ -454,5 +523,29 @@ window.addEventListener("keydown", (e) => {
 
 hintBtn.addEventListener("click", () => {
   if (chainComplete) return;
-  showToast(`Hint: ${answer.toUpperCase()}`, 1600);
+  if (isOver) return;
+  if (hintsLeft <= 0) {
+    showToast("No hints left");
+    return;
+  }
+  if (col >= currentWordLen) {
+    showToast("Row is full");
+    return;
+  }
+  const nextLetter = answer[col].toUpperCase();
+  guesses[row] = (guesses[row] + nextLetter).slice(0, currentWordLen);
+  col = guesses[row].length;
+  hintsLeft -= 1;
+  hintsUsed += 1;
+  render();
+});
+
+answerBtn.addEventListener("click", () => {
+  if (chainComplete) return;
+  showToast(`Answer: ${answer.toUpperCase()}`, 1600);
+});
+
+difficultySelectEl.addEventListener("change", () => {
+  showToast(`Mode set to ${difficultySelectEl.value}`, 1000);
+  resetChain();
 });

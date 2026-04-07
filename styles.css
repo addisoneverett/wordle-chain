@@ -61,6 +61,29 @@ body {
   justify-content: flex-end;
 }
 
+.header__left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.difficultyLabel {
+  color: var(--muted);
+  font-weight: 700;
+  font-size: 12px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.difficultySelect {
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--fg);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 8px;
+  padding: 6px 8px;
+  font-weight: 700;
+}
+
 .iconButton {
   border: 1px solid rgba(255, 255, 255, 0.16);
   background: rgba(255, 255, 255, 0.06);
@@ -305,7 +328,7 @@ body {
 }
 
 .hiddenSection {
-  display: none;
+  display: none !important;
 }
 
 .celebration {
@@ -318,6 +341,32 @@ body {
   margin: 0;
   font-weight: 800;
   color: var(--fg);
+}
+
+.starRating {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  justify-content: center;
+  min-height: 36px;
+}
+
+.star {
+  font-size: 30px;
+  line-height: 1;
+  color: rgba(255, 255, 255, 0.28);
+  transform: scale(0.9);
+}
+
+.star[data-on="true"] {
+  color: #facc15;
+  animation: starPop 260ms ease forwards;
+}
+
+.ratingMeta {
+  margin: 0;
+  color: var(--muted);
+  font-weight: 700;
 }
 
 .confettiLayer {
@@ -344,6 +393,21 @@ body {
   100% {
     transform: translateY(105vh) rotate(720deg);
     opacity: 0.1;
+  }
+}
+
+@keyframes starPop {
+  0% {
+    transform: scale(0.5) rotate(-10deg);
+    opacity: 0.2;
+  }
+  60% {
+    transform: scale(1.2) rotate(8deg);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(1) rotate(0deg);
+    opacity: 1;
   }
 }
 

@@ -18,6 +18,12 @@ Then open:
 - You have 5 guesses each round.
 - Each round picks a word length from 3 to 8 letters.
 - The board shows only that many squares per row for the current round.
+- Difficulty mode controls chain length, word length range, and hint count.
+
+## Difficulty modes
+- `Easy`: 4-word chains, 3-5 letter words, 5 hints
+- `Medium`: 5-word chains, 4-6 letter words, 3 hints
+- `Hard`: 6-word chains, 5-8 letter words, 1 hint
 
 ## Customize words
 Edit `words.js`:

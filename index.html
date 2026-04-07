@@ -9,11 +9,21 @@
   <body>
     <div class="app" id="app">
       <header class="header">
-        <div class="header__left"></div>
-        <h1 class="header__title">Wordle</h1>
+        <div class="header__left">
+          <label class="difficultyLabel" for="difficultySelect">Mode</label>
+          <select id="difficultySelect" class="difficultySelect" aria-label="Difficulty mode">
+            <option value="easy">Easy</option>
+            <option value="medium" selected>Medium</option>
+            <option value="hard">Hard</option>
+          </select>
+        </div>
+        <h1 class="header__title">Wordle Chain</h1>
         <div class="header__right">
           <button class="iconButton" id="hintBtn" type="button" aria-label="Show hint" title="Show hint">
             Hint
+          </button>
+          <button class="iconButton" id="answerBtn" type="button" aria-label="Show answer" title="Show answer">
+            Answer
           </button>
           <button class="iconButton" id="newGameBtn" type="button" aria-label="New game" title="New game">
             New
@@ -37,6 +47,8 @@
 
         <section class="celebration hiddenSection" id="celebrationSection" aria-live="polite">
           <p class="celebrationText">Chain complete!</p>
+          <div class="starRating" id="starRating" aria-label="Star rating"></div>
+          <p class="ratingMeta" id="ratingMeta"></p>
           <button class="primaryButton" id="chainPlayAgainBtn" type="button">Play again</button>
         </section>
       </main>
