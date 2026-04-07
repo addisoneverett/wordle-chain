@@ -15,9 +15,11 @@ const DIFFICULTY = {
 const historyEl = document.getElementById("history");
 const chainDividerEl = document.getElementById("chainDivider");
 const difficultySelectEl = document.getElementById("difficultySelect");
+const headerTitleEl = document.getElementById("headerTitle");
 const gridEl = document.getElementById("grid");
 const statusTextEl = document.getElementById("statusText");
 const keyboardSectionEl = document.getElementById("keyboardSection");
+const mobileAnswerFlashEl = document.getElementById("mobileAnswerFlash");
 const celebrationSectionEl = document.getElementById("celebrationSection");
 const starRatingEl = document.getElementById("starRating");
 const ratingMetaEl = document.getElementById("ratingMeta");
@@ -101,6 +103,7 @@ function showToast(message, ms = 900) {
   }, ms);
 }
 showToast._t = 0;
+let mobileFlashTimer = 0;
 
 async function loadDictionary() {
   try {
@@ -315,7 +318,7 @@ function render() {
   if (winsLeft <= 0) {
     statusTextEl.textContent = "Chain complete";
   } else {
-    statusTextEl.textContent = `Mode: ${currentMode.toUpperCase()} - Round ${solvedWords.length + 1}/${targetWins} - ${currentWordLen} letters - Guesses left: ${guessesLeft} - Hints left: ${hintsLeft}`;
+    statusTextEl.textContent = `Guesses left: ${guessesLeft} - Hints left: ${hintsLeft}`;
   }
 }
 
@@ -548,4 +551,15 @@ answerBtn.addEventListener("click", () => {
 difficultySelectEl.addEventListener("change", () => {
   showToast(`Mode set to ${difficultySelectEl.value}`, 1000);
   resetChain();
+});
+
+headerTitleEl.addEventListener("click", () => {
+  if (!window.matchMedia("(max-width: 768px)").matches) return;
+  if (chainComplete || isOver) return;
+  mobileAnswerFlashEl.textContent = `Answer: ${answer.toUpperCase()}`;
+  mobileAnswerFlashEl.dataset.show = "true";
+  window.clearTimeout(mobileFlashTimer);
+  mobileFlashTimer = window.setTimeout(() => {
+    mobileAnswerFlashEl.dataset.show = "false";
+  }, 900);
 });
