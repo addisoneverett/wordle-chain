@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Wordle Clone</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <div class="app" id="app">
+      <header class="header">
+        <div class="header__left"></div>
+        <h1 class="header__title">Wordle</h1>
+        <div class="header__right">
+          <button class="iconButton" id="newGameBtn" type="button" aria-label="New game" title="New game">
+            New
+          </button>
+        </div>
+      </header>
+
+      <main class="main">
+        <section class="board" aria-label="Board">
+          <div class="grid" id="grid" aria-label="Guesses grid"></div>
+        </section>
+
+        <section class="keyboard" aria-label="Keyboard">
+          <div class="keyboard__row" id="kbRow1"></div>
+          <div class="keyboard__row" id="kbRow2"></div>
+          <div class="keyboard__row" id="kbRow3"></div>
+        </section>
+      </main>
+
+      <div class="toast" id="toast" role="status" aria-live="polite" aria-atomic="true"></div>
+
+      <div class="modalOverlay hidden" id="modalOverlay" aria-hidden="true">
+        <div class="modal" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+          <h2 class="modal__title" id="modalTitle">Game over</h2>
+          <p class="modal__body" id="modalBody"></p>
+          <div class="modal__actions">
+            <button class="primaryButton" id="playAgainBtn" type="button">Play again</button>
+            <button class="secondaryButton" id="closeModalBtn" type="button">Close</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script type="module" src="./app.js"></script>
+  </body>
+</html>

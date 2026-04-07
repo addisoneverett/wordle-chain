@@ -1,0 +1,267 @@
+:root {
+  --bg: #121213;
+  --fg: #f8f8f8;
+  --muted: #9a9a9a;
+  --tile: #3a3a3c;
+  --tileBorder: #565758;
+  --tileBorderActive: #878a8c;
+  --key: #818384;
+  --keyFg: #ffffff;
+  --green: #538d4e;
+  --yellow: #b59f3b;
+  --gray: #3a3a3c;
+  --shadow: rgba(0, 0, 0, 0.4);
+  --radius: 10px;
+  --font: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji",
+    "Segoe UI Emoji";
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--fg);
+  font-family: var(--font);
+}
+
+.app {
+  min-height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.header {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  padding: 14px 16px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.header__title {
+  margin: 0;
+  font-size: 22px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.header__right {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.iconButton {
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--fg);
+  padding: 8px 10px;
+  border-radius: 999px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.iconButton:hover {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 18px 12px 24px;
+  gap: 18px;
+}
+
+.board {
+  width: min(380px, 100%);
+}
+
+.grid {
+  display: grid;
+  grid-template-rows: repeat(6, 1fr);
+  gap: 8px;
+}
+
+.row {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 8px;
+}
+
+.tile {
+  aspect-ratio: 1 / 1;
+  border: 2px solid var(--tileBorder);
+  border-radius: 8px;
+  display: grid;
+  place-items: center;
+  text-transform: uppercase;
+  font-weight: 800;
+  font-size: 28px;
+  line-height: 1;
+  user-select: none;
+  background: transparent;
+}
+
+.tile[data-state="active"] {
+  border-color: var(--tileBorderActive);
+}
+
+.tile[data-state="green"] {
+  background: var(--green);
+  border-color: var(--green);
+}
+
+.tile[data-state="yellow"] {
+  background: var(--yellow);
+  border-color: var(--yellow);
+}
+
+.tile[data-state="gray"] {
+  background: var(--gray);
+  border-color: var(--gray);
+}
+
+.keyboard {
+  width: min(560px, 100%);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.keyboard__row {
+  display: flex;
+  gap: 6px;
+  justify-content: center;
+}
+
+.key {
+  flex: 1;
+  max-width: 44px;
+  min-width: 30px;
+  height: 52px;
+  border-radius: 10px;
+  border: 0;
+  background: var(--key);
+  color: var(--keyFg);
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  cursor: pointer;
+  text-transform: uppercase;
+}
+
+.key[data-wide="true"] {
+  flex: 1.4;
+  max-width: 72px;
+}
+
+.key:hover {
+  filter: brightness(1.06);
+}
+
+.key[data-state="green"] {
+  background: var(--green);
+}
+
+.key[data-state="yellow"] {
+  background: var(--yellow);
+}
+
+.key[data-state="gray"] {
+  background: var(--gray);
+}
+
+.toast {
+  position: fixed;
+  top: 68px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(248, 248, 248, 0.92);
+  color: #111;
+  padding: 10px 12px;
+  border-radius: 12px;
+  font-weight: 700;
+  box-shadow: 0 12px 30px var(--shadow);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 140ms ease;
+}
+
+.toast[data-show="true"] {
+  opacity: 1;
+}
+
+.modalOverlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.55);
+  display: grid;
+  place-items: center;
+  padding: 16px;
+}
+
+.modalOverlay.hidden {
+  display: none;
+}
+
+.modal {
+  width: min(420px, 100%);
+  background: #1b1b1c;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: var(--radius);
+  box-shadow: 0 20px 60px var(--shadow);
+  padding: 16px;
+}
+
+.modal__title {
+  margin: 0 0 10px;
+  font-size: 18px;
+}
+
+.modal__body {
+  margin: 0 0 16px;
+  color: rgba(255, 255, 255, 0.86);
+}
+
+.modal__actions {
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
+}
+
+.primaryButton,
+.secondaryButton {
+  border-radius: 12px;
+  padding: 10px 12px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.primaryButton {
+  border: 0;
+  background: rgba(255, 255, 255, 0.9);
+  color: #111;
+}
+
+.secondaryButton {
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  background: transparent;
+  color: var(--fg);
+}
+
+@media (max-width: 420px) {
+  .tile {
+    font-size: 24px;
+  }
+  .key {
+    height: 48px;
+  }
+}
