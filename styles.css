@@ -45,7 +45,7 @@ body {
 
 .header {
   display: grid;
-  grid-template-columns: 1fr auto 1fr;
+  grid-template-columns: auto minmax(0, 1fr) auto;
   align-items: center;
   padding: 14px 16px;
   border-bottom: 1px solid rgba(255, 255, 255, 0.08);
@@ -59,19 +59,125 @@ body {
   text-transform: uppercase;
   justify-self: center;
   text-align: center;
+  min-width: 0;
 }
 
-.header__right {
+.header__leading {
   display: flex;
-  justify-content: flex-end;
-  gap: 8px;
-  flex-wrap: wrap;
-}
-
-.header__left {
-  display: flex;
+  justify-content: flex-start;
   align-items: center;
   gap: 8px;
+  min-width: 0;
+}
+
+.header__trailing {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.header__trailing--spacer {
+  width: 40px;
+  flex: 0 0 auto;
+}
+
+.formatPill {
+  border: 0;
+  margin: 0;
+  padding: 8px 2px;
+  background: transparent;
+  color: var(--muted);
+  font: inherit;
+  font-weight: 800;
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  cursor: pointer;
+  touch-action: manipulation;
+  white-space: nowrap;
+}
+
+.formatPill:hover {
+  opacity: 0.85;
+  color: var(--fg);
+}
+
+.formatPill[data-active="true"] {
+  color: var(--yellow);
+}
+
+.header--subpage {
+  grid-template-columns: auto minmax(0, 1fr) auto;
+}
+
+.subpageBackLink {
+  justify-self: start;
+  color: var(--fg);
+  text-decoration: none;
+  font-weight: 700;
+  font-size: 14px;
+  padding: 8px 4px;
+  border-radius: 8px;
+}
+
+.subpageBackLink:hover {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.header__title--subpage {
+  font-size: 18px;
+}
+
+.subpageMain {
+  flex: 1;
+  width: 100%;
+  max-width: 640px;
+  margin: 0 auto;
+  padding: 20px 16px 32px;
+}
+
+.subpageNote {
+  margin: 0 0 16px;
+  color: var(--muted);
+  font-weight: 600;
+  font-size: 14px;
+  line-height: 1.4;
+}
+
+.leaderboardTableWrap {
+  overflow-x: auto;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: var(--radius);
+}
+
+.leaderboardTable {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+}
+
+.leaderboardTable th,
+.leaderboardTable td {
+  padding: 10px 12px;
+  text-align: left;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.leaderboardTable th {
+  color: var(--muted);
+  font-weight: 800;
+  text-transform: uppercase;
+  font-size: 11px;
+  letter-spacing: 0.06em;
+}
+
+.leaderboardTable tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.app--subpage {
+  min-height: 100%;
 }
 
 .difficultyLabel {
@@ -87,23 +193,18 @@ body {
   color: var(--fg);
   border: 0;
   border-radius: 0;
-  padding: 2px 2px;
+  padding: 2px 4px;
   font-weight: 700;
   min-width: 0;
   appearance: none;
   -webkit-appearance: none;
   -moz-appearance: none;
-  padding-right: 14px;
-  background-image: linear-gradient(45deg, transparent 50%, rgba(255, 255, 255, 0.8) 50%),
-    linear-gradient(135deg, rgba(255, 255, 255, 0.8) 50%, transparent 50%);
-  background-position: calc(100% - 10px) calc(50% - 1px), calc(100% - 6px) calc(50% - 1px);
-  background-size: 4px 4px, 4px 4px;
-  background-repeat: no-repeat;
+  background-image: none;
 }
 
 .iconButton {
-  border: 1px solid rgba(255, 255, 255, 0.16);
-  background: rgba(255, 255, 255, 0.06);
+  border: 0;
+  background: transparent;
   color: var(--fg);
   padding: 8px 10px;
   border-radius: 999px;
@@ -113,7 +214,8 @@ body {
 }
 
 .iconButton:hover {
-  background: rgba(255, 255, 255, 0.1);
+  background: transparent;
+  opacity: 0.82;
 }
 
 .answerFab {
@@ -121,8 +223,8 @@ body {
   right: 16px;
   bottom: 16px;
   z-index: 40;
-  border: 1px solid rgba(255, 255, 255, 0.14);
-  background: rgba(140, 140, 140, 0.24);
+  border: 0;
+  background: transparent;
   color: rgba(255, 255, 255, 0.72);
   border-radius: 999px;
   padding: 8px 12px;
@@ -132,7 +234,8 @@ body {
 }
 
 .answerFab:hover {
-  background: rgba(150, 150, 150, 0.32);
+  background: transparent;
+  opacity: 0.85;
 }
 
 .main {
@@ -235,11 +338,62 @@ body {
 }
 
 .keyboard {
+  position: relative;
   width: min(560px, 100%);
   display: flex;
   flex-direction: column;
   gap: 8px;
   padding-inline: 4px;
+}
+
+.keyboardToolbar {
+  display: flex;
+  justify-content: center;
+  width: 100%;
+  margin-bottom: 4px;
+}
+
+.keyboardToolbar__group {
+  display: grid;
+  grid-template-columns: repeat(3, auto);
+  column-gap: 24px;
+  row-gap: 6px;
+  justify-content: center;
+  justify-items: center;
+  align-items: center;
+  width: max-content;
+  max-width: 100%;
+  margin-inline: auto;
+}
+
+.difficultySelect--toolbar {
+  text-align: center;
+  text-align-last: center;
+}
+
+.toolbarIconLink {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  width: 40px;
+  height: 40px;
+  border-radius: 999px;
+  border: 0;
+  background: transparent;
+  color: var(--fg);
+  text-decoration: none;
+  touch-action: manipulation;
+}
+
+.toolbarIconLink:hover {
+  background: transparent;
+  opacity: 0.82;
+}
+
+.toolbarIconLink__icon {
+  display: flex;
+  line-height: 0;
 }
 
 .mobileAnswerFlash {
@@ -255,10 +409,6 @@ body {
 
 .mobileAnswerFlash[data-show="true"] {
   opacity: 1;
-}
-
-.mobileHintRow {
-  display: none;
 }
 
 .keyboard__row {
@@ -584,33 +734,29 @@ body {
     --tileGap: 5px;
   }
   .header {
-    grid-template-columns: 1fr auto 1fr;
-    justify-items: stretch;
-    text-align: initial;
+    grid-template-columns: auto minmax(0, 1fr) auto;
     gap: 6px;
     padding: 8px 10px;
   }
-  .header__left,
-  .header__right {
-    width: auto;
-    gap: 6px;
-  }
-  .header__left {
-    justify-content: flex-start;
-  }
-  .header__right {
-    justify-content: flex-end;
-  }
   .header__title {
-    font-size: 18px;
+    font-size: 16px;
   }
-  .difficultyLabel {
-    display: none;
+  .formatPill {
+    font-size: 10px;
+    letter-spacing: 0.08em;
+    padding: 6px 0;
   }
   .difficultySelect {
     min-width: 0;
-    padding: 2px 14px 2px 2px;
+    padding: 2px 4px;
     font-size: 12px;
+  }
+  .keyboardToolbar__group {
+    column-gap: 18px;
+  }
+  .toolbarIconLink {
+    width: 36px;
+    height: 36px;
   }
   .iconButton {
     padding: 6px 8px;
@@ -690,20 +836,8 @@ body {
   .status {
     font-size: 13px;
   }
-  #hintBtn {
-    display: none;
-  }
-  .mobileHintRow {
-    display: flex;
-    justify-content: flex-end;
-    margin-bottom: 4px;
-  }
-  .mobileHintBtn {
-    padding: 6px 10px;
-    font-size: 12px;
-  }
   .main {
-    padding-bottom: 285px;
+    padding-bottom: 318px;
     overflow-y: auto;
     width: 100%;
   }

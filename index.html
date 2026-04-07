@@ -3,27 +3,25 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-    <title>Wordle Clone</title>
+    <title>Wordle Chain</title>
     <link rel="stylesheet" href="./styles.css" />
   </head>
   <body>
     <div class="app" id="app">
       <header class="header">
-        <div class="header__left">
-          <label class="difficultyLabel" for="difficultySelect">Mode</label>
-          <select id="difficultySelect" class="difficultySelect" aria-label="Difficulty mode">
-            <option value="easy" selected>Easy</option>
-            <option value="medium">Medium</option>
-            <option value="hard">Hard</option>
-          </select>
+        <div class="header__leading">
+          <button class="iconButton" id="newGameBtn" type="button" aria-label="New game" title="New game">New</button>
         </div>
         <h1 class="header__title" id="headerTitle">Wordle Chain</h1>
-        <div class="header__right">
-          <button class="iconButton" id="hintBtn" type="button" aria-label="Show hint" title="Show hint">
-            Hint
-          </button>
-          <button class="iconButton" id="newGameBtn" type="button" aria-label="New game" title="New game">
-            New
+        <div class="header__trailing">
+          <button
+            class="formatPill"
+            id="endlessBtn"
+            type="button"
+            aria-label="Endless mode"
+            title="Endless — chains keep going"
+          >
+            ENDLESS
           </button>
         </div>
       </header>
@@ -37,8 +35,32 @@
         </section>
 
         <section class="keyboard" id="keyboardSection" aria-label="Keyboard">
-          <div class="mobileHintRow">
-            <button class="iconButton mobileHintBtn" id="mobileHintBtn" type="button" aria-label="Show hint">Hint</button>
+          <div class="keyboardToolbar" aria-label="Game controls">
+            <div class="keyboardToolbar__group">
+              <select id="difficultySelect" class="difficultySelect difficultySelect--toolbar" aria-label="Difficulty mode">
+                <option value="easy" selected>Easy</option>
+                <option value="medium">Medium</option>
+                <option value="hard">Hard</option>
+              </select>
+              <a
+                class="toolbarIconLink"
+                href="./leaderboard.html"
+                aria-label="Leaderboard"
+                title="Leaderboard"
+              >
+                <span class="toolbarIconLink__icon" aria-hidden="true">
+                  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path
+                      d="M4 20h3v-8H4v8zm7 0h3V4h-3v16zm7 0h3v-5h-3v5z"
+                      fill="currentColor"
+                    />
+                  </svg>
+                </span>
+              </a>
+              <button class="iconButton" id="hintBtn" type="button" aria-label="Show hint" title="Show hint">
+                Hint
+              </button>
+            </div>
           </div>
           <div class="keyboard__row" id="kbRow1"></div>
           <div class="keyboard__row" id="kbRow2"></div>

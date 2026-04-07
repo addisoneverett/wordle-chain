@@ -27,9 +27,9 @@ const chainPlayAgainBtn = document.getElementById("chainPlayAgainBtn");
 const confettiLayerEl = document.getElementById("confettiLayer");
 const toastEl = document.getElementById("toast");
 const hintBtn = document.getElementById("hintBtn");
-const mobileHintBtn = document.getElementById("mobileHintBtn");
 const answerBtn = document.getElementById("answerBtn");
 const newGameBtn = document.getElementById("newGameBtn");
+const endlessBtn = document.getElementById("endlessBtn");
 
 const howToOverlay = document.getElementById("howToOverlay");
 const howToDismissBtn = document.getElementById("howToDismissBtn");
@@ -70,6 +70,8 @@ let currentMode = "easy";
 let hintsLeft = DIFFICULTY.easy.hints;
 let hintsUsed = 0;
 let guessesUsedTotal = 0;
+/** Standard chain (celebration + stars) vs endless (auto next chain). */
+let endlessMode = false;
 
 /** @type {Map<string, HTMLButtonElement>} */
 const keyButtons = new Map();
@@ -419,7 +421,32 @@ function renderStarRating() {
   ratingMetaEl.textContent = `${stars}/5 stars (${starsFloat.toFixed(1)}) - guesses: ${guessesUsedTotal}, hints used: ${hintsUsed}`;
 }
 
+function updateFormatUi() {
+  if (!endlessBtn) return;
+  endlessBtn.dataset.active = endlessMode ? "true" : "false";
+  endlessBtn.setAttribute("aria-pressed", endlessMode ? "true" : "false");
+}
+
+function finishChainEndless() {
+  showToast("Next chain", 950);
+  currentChain = pickChain();
+  solvedWords = [];
+  hintsLeft = getModeConfig().hints;
+  hintsUsed = 0;
+  guessesUsedTotal = 0;
+  confettiLayerEl.innerHTML = "";
+  celebrationSectionEl.classList.add("hiddenSection");
+  starRatingEl.innerHTML = "";
+  ratingMetaEl.textContent = "";
+  closeModal();
+  prepareNextRound();
+}
+
 function finishChain() {
+  if (endlessMode) {
+    finishChainEndless();
+    return;
+  }
   isOver = true;
   chainComplete = true;
   gridEl.classList.add("hiddenSection");
@@ -542,6 +569,7 @@ function resetChain() {
   starRatingEl.innerHTML = "";
   ratingMetaEl.textContent = "";
   prepareNextRound();
+  updateFormatUi();
 }
 
 // Init
@@ -550,7 +578,15 @@ resetChain();
 loadDictionary();
 maybeShowHowTo();
 
-newGameBtn.addEventListener("click", resetChain);
+newGameBtn.addEventListener("click", () => {
+  endlessMode = false;
+  resetChain();
+});
+
+endlessBtn?.addEventListener("click", () => {
+  endlessMode = true;
+  resetChain();
+});
 chainPlayAgainBtn.addEventListener("click", resetChain);
 playAgainBtn.addEventListener("click", resetChain);
 closeModalBtn.addEventListener("click", closeModal);
@@ -598,7 +634,6 @@ function handleHintClick() {
 }
 
 hintBtn.addEventListener("click", handleHintClick);
-mobileHintBtn?.addEventListener("click", handleHintClick);
 
 answerBtn.addEventListener("click", () => {
   if (chainComplete) return;
