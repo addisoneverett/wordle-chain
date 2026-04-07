@@ -27,6 +27,7 @@ const chainPlayAgainBtn = document.getElementById("chainPlayAgainBtn");
 const confettiLayerEl = document.getElementById("confettiLayer");
 const toastEl = document.getElementById("toast");
 const hintBtn = document.getElementById("hintBtn");
+const mobileHintBtn = document.getElementById("mobileHintBtn");
 const answerBtn = document.getElementById("answerBtn");
 const newGameBtn = document.getElementById("newGameBtn");
 
@@ -524,7 +525,7 @@ window.addEventListener("keydown", (e) => {
   handleInput(k);
 });
 
-hintBtn.addEventListener("click", () => {
+function handleHintClick() {
   if (chainComplete) return;
   if (isOver) return;
   if (hintsLeft <= 0) {
@@ -541,7 +542,10 @@ hintBtn.addEventListener("click", () => {
   hintsLeft -= 1;
   hintsUsed += 1;
   render();
-});
+}
+
+hintBtn.addEventListener("click", handleHintClick);
+mobileHintBtn?.addEventListener("click", handleHintClick);
 
 answerBtn.addEventListener("click", () => {
   if (chainComplete) return;

@@ -255,6 +255,10 @@ body {
   opacity: 1;
 }
 
+.mobileHintRow {
+  display: none;
+}
+
 .keyboard__row {
   display: flex;
   gap: 6px;
@@ -576,6 +580,18 @@ body {
   }
   .status {
     font-size: 13px;
+  }
+  #hintBtn {
+    display: none;
+  }
+  .mobileHintRow {
+    display: flex;
+    justify-content: flex-end;
+    margin-bottom: 4px;
+  }
+  .mobileHintBtn {
+    padding: 6px 10px;
+    font-size: 12px;
   }
   .main {
     padding-bottom: 285px;
