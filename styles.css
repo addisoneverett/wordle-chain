@@ -1016,9 +1016,9 @@ body {
 }
 
 @media (max-width: 768px) {
-  html,
-  body {
-    overflow: hidden;
+  .app {
+    min-height: 100vh;
+    min-height: 100dvh;
   }
   .header {
     padding: 10px 12px;
@@ -1047,7 +1047,7 @@ body {
   }
   .main {
     padding-bottom: 318px;
-    overflow-y: auto;
+    overflow-y: visible;
     width: 100%;
   }
   .mobileAnswerFlash {
