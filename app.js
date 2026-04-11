@@ -1,5 +1,9 @@
 import { ANSWERS } from "./words.js";
-import { WORD_CHAINS, chainHasOnlyCuratedPhrasePairs } from "./wordChains.js";
+import {
+  WORD_CHAINS,
+  chainHasOnlyCuratedPhrasePairs,
+  chainHasOnlyEasyCuratedPhrasePairs,
+} from "./wordChains.js";
 import {
   collectGraphVocabulary,
   getPhraseAdjacency,
@@ -265,8 +269,12 @@ function pickChain() {
     if (chain.length !== cfg.chainLen) return false;
     return chain.every((w) => w.length >= cfg.minLen && w.length <= cfg.maxLen);
   };
-  const curatedPairsOnly = (/** @type {string[]} */ chain) =>
-    chainHasOnlyCuratedPhrasePairs(chain.map((w) => w.toLowerCase()));
+  const curatedPairsOnly = (/** @type {string[]} */ chain) => {
+    const lower = chain.map((w) => w.toLowerCase());
+    return currentMode === "easy"
+      ? chainHasOnlyEasyCuratedPhrasePairs(lower)
+      : chainHasOnlyCuratedPhrasePairs(lower);
+  };
 
   const candidates = WORD_CHAINS.filter((chain) => matchesDifficulty(chain) && curatedPairsOnly(chain));
   const sameLenCurated = WORD_CHAINS.filter(

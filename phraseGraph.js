@@ -1,4 +1,9 @@
-import { ALL_PHRASE_CHAINS, phrasePairKey, getCuratedPhrasePairSet } from "./wordChains.js";
+import {
+  ALL_PHRASE_CHAINS,
+  phrasePairKey,
+  getCuratedPhrasePairSet,
+  getEasyCuratedPhrasePairSet,
+} from "./wordChains.js";
 
 const MIN_WORD_LEN = 3;
 
@@ -27,11 +32,17 @@ export function pairKey(a, b) {
 }
 
 /**
- * Among length-valid successors, prefer those whose a→b step appears in {@link WORD_CHAINS}
- * so walks stay on explicitly curated collocations (especially when easy caps word length).
+ * Among length-valid successors, prefer vetted phrase steps from {@link WORD_CHAINS}.
+ * Easy: only pairs from easy-length (3–5) chains, then uncached neighbors if needed.
  */
-function preferCuratedPhraseNeighbors(cur, nexts) {
+function preferCuratedPhraseNeighbors(cur, nexts, difficulty) {
   if (nexts.length === 0) return nexts;
+  if (difficulty === "easy") {
+    const easyPairs = getEasyCuratedPhrasePairSet();
+    const veryCommon = nexts.filter((n) => easyPairs.has(phrasePairKey(cur, n)));
+    // Prefer very common pairs only; allow other 3–5 neighbors if the easy subgraph has no exit.
+    return veryCommon.length > 0 ? veryCommon : nexts;
+  }
   const curated = getCuratedPhrasePairSet();
   const preferred = nexts.filter((n) => curated.has(phrasePairKey(cur, n)));
   return preferred.length > 0 ? preferred : nexts;
@@ -109,7 +120,7 @@ export function appendOnePhraseStep(adj, path, usedPairs, difficulty) {
     raw.filter((n) => !usedPairs.has(phrasePairKey(cur, n))),
     difficulty,
   );
-  const pool = preferCuratedPhraseNeighbors(cur, nexts);
+  const pool = preferCuratedPhraseNeighbors(cur, nexts, difficulty);
   const next = pickNextStep(pool, difficulty);
   if (!next) return false;
   usedPairs.add(phrasePairKey(cur, next));
@@ -140,7 +151,7 @@ export function appendOnePhraseStepRelaxed(adj, path, difficulty) {
   const raw = filterByDifficultyLength(adj.get(cur) || [], difficulty);
   let nexts = prev != null ? raw.filter((n) => n !== prev) : raw;
   if (nexts.length === 0) nexts = raw;
-  const pool = preferCuratedPhraseNeighbors(cur, nexts);
+  const pool = preferCuratedPhraseNeighbors(cur, nexts, difficulty);
   const next = pickNextStep(pool, difficulty);
   if (!next) return false;
   path.push(next);

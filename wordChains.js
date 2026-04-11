@@ -2,6 +2,7 @@ import { ENDLESS_BACKBONE_CHAINS } from "./endlessBackboneChains.js";
 
 // Each adjacent pair should form a common phrase. Standard chains are 5 words (DIFFICULTY.chainLen).
 // Easy: 3–5 letters/word; Medium: 3–6; Hard: 3–8. pickChain() filters by active difficulty.
+// Easy mode uses only rows where every word is 3–5 letters for Standard + easy-curated phrase pairs in the graph.
 export const WORD_CHAINS = [
   // Easy (15)
   ["apple", "core", "dump", "truck", "stop"],
@@ -94,6 +95,53 @@ export function chainHasOnlyCuratedPhrasePairs(wordsLower) {
   const curated = getCuratedPhrasePairSet();
   for (let i = 0; i < wordsLower.length - 1; i++) {
     if (!curated.has(phrasePairKey(wordsLower[i], wordsLower[i + 1]))) return false;
+  }
+  return true;
+}
+
+/** Matches Standard / phrase-graph “easy” per-word bounds (3–5 letters). */
+const EASY_WORD_MIN = 3;
+const EASY_WORD_MAX = 5;
+
+function chainIsEasyWordLengthRow(chain) {
+  return chain.every((w) => {
+    const L = String(w).trim().length;
+    return L >= EASY_WORD_MIN && L <= EASY_WORD_MAX;
+  });
+}
+
+let _easyCuratedPhrasePairSet = null;
+
+/**
+ * Directed edges from {@link WORD_CHAINS} rows where every word is 3–5 letters
+ * (the easy Standard pool) — very common short-phrase collocations only.
+ */
+export function getEasyCuratedPhrasePairSet() {
+  if (_easyCuratedPhrasePairSet) return _easyCuratedPhrasePairSet;
+  /** @type {Set<string>} */
+  const s = new Set();
+  for (const chain of WORD_CHAINS) {
+    if (!chainIsEasyWordLengthRow(chain)) continue;
+    const words = chain.map((w) => String(w).toLowerCase().trim());
+    for (let i = 0; i < words.length - 1; i++) {
+      const x = words[i];
+      const y = words[i + 1];
+      if (x.length < MIN_PAIR_WORD_LEN || y.length < MIN_PAIR_WORD_LEN) continue;
+      s.add(phrasePairKey(x, y));
+    }
+  }
+  _easyCuratedPhrasePairSet = s;
+  return _easyCuratedPhrasePairSet;
+}
+
+/**
+ * True iff every consecutive pair appears in an easy-length-only curated chain.
+ * @param {string[]} wordsLower Already lowercased words.
+ */
+export function chainHasOnlyEasyCuratedPhrasePairs(wordsLower) {
+  const easy = getEasyCuratedPhrasePairSet();
+  for (let i = 0; i < wordsLower.length - 1; i++) {
+    if (!easy.has(phrasePairKey(wordsLower[i], wordsLower[i + 1]))) return false;
   }
   return true;
 }
