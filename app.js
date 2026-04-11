@@ -435,6 +435,7 @@ function dismissHowTo() {
   if (!howToOverlay) return;
   howToOverlay.classList.add("hidden");
   howToOverlay.setAttribute("aria-hidden", "true");
+  document.body.classList.remove("howToOpen");
   if (isLocalDevHost()) return;
   try {
     localStorage.setItem(HOW_TO_STORAGE_KEY, "1");
@@ -454,6 +455,10 @@ function maybeShowHowTo() {
   }
   howToOverlay.classList.remove("hidden");
   howToOverlay.setAttribute("aria-hidden", "false");
+  document.body.classList.add("howToOpen");
+  requestAnimationFrame(() => {
+    howToDismissBtn?.focus();
+  });
 }
 
 function buildSolvedRow(word) {

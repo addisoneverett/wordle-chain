@@ -701,8 +701,13 @@ body {
 }
 
 .howToOverlay {
-  z-index: 60;
+  z-index: 100;
   background: rgba(0, 0, 0, 0.55);
+}
+
+/* Prevent page scroll behind the how-to while it is open (restored on dismiss). */
+body.howToOpen {
+  overflow: hidden;
 }
 
 .modal {
@@ -1020,6 +1025,60 @@ body {
     min-height: 100vh;
     min-height: 100dvh;
   }
+
+  /* How-to: bottom sheet, full width, above fixed keyboard (z-index 20). */
+  .howToOverlay {
+    place-items: unset;
+    align-items: end;
+    justify-items: stretch;
+    padding: 0;
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .modal.howToModal {
+    width: 100%;
+    max-width: none;
+    max-height: min(88dvh, 92vh);
+    margin: 0;
+    border-radius: 20px 20px 0 0;
+    padding: 20px 18px calc(18px + env(safe-area-inset-bottom, 0px));
+    box-shadow: 0 -8px 40px rgba(0, 0, 0, 0.45);
+  }
+
+  .modal.howToModal .modal__title {
+    font-size: 18px;
+    margin-bottom: 12px;
+    text-align: center;
+  }
+
+  .modal.howToModal .howToBody {
+    font-size: 15px;
+    line-height: 1.55;
+  }
+
+  .modal.howToModal .chainExamplePairs {
+    padding: 12px 14px;
+    gap: 14px;
+  }
+
+  .modal.howToModal .chainWords {
+    font-size: 14px;
+    line-height: 1.35;
+    word-break: break-word;
+  }
+
+  .modal.howToModal .chainPhrases {
+    font-size: 13px;
+    line-height: 1.35;
+  }
+
+  .modal.howToModal .howToActions .primaryButton {
+    width: 100%;
+    min-height: 48px;
+    font-size: 16px;
+  }
+
   .header {
     padding: 10px 12px;
   }
