@@ -107,6 +107,103 @@ body {
   color: var(--yellow);
 }
 
+.gameFormatWrap {
+  position: relative;
+  display: flex;
+  justify-content: flex-end;
+}
+
+.gameFormatMenu {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 4px);
+  z-index: 60;
+  min-width: 0;
+  padding: 6px 0 0;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
+  background: transparent;
+  border: 0;
+  box-shadow: none;
+  opacity: 1;
+  visibility: visible;
+  pointer-events: auto;
+}
+
+.gameFormatMenu.hiddenSection {
+  display: flex !important;
+  opacity: 0 !important;
+  visibility: hidden !important;
+  pointer-events: none !important;
+  height: 0 !important;
+  min-height: 0 !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  overflow: hidden !important;
+}
+
+.gameFormatMenu__item {
+  margin: 0;
+  border: 0;
+  border-radius: 0;
+  padding: 4px 0;
+  background: transparent;
+  color: var(--muted);
+  font: inherit;
+  font-weight: 800;
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  text-align: right;
+  text-transform: uppercase;
+  cursor: pointer;
+  touch-action: manipulation;
+  transform: translateY(0);
+  transition: color 0.12s ease, transform 0.18s ease, opacity 0.18s ease;
+}
+
+.gameFormatMenu:not(.hiddenSection) .gameFormatMenu__item {
+  animation: gameFormatDrop 0.22s ease-out backwards;
+}
+
+.gameFormatMenu:not(.hiddenSection) .gameFormatMenu__item:nth-child(1) {
+  animation-delay: 0ms;
+}
+
+.gameFormatMenu:not(.hiddenSection) .gameFormatMenu__item:nth-child(2) {
+  animation-delay: 0.04s;
+}
+
+.gameFormatMenu:not(.hiddenSection) .gameFormatMenu__item:nth-child(3) {
+  animation-delay: 0.08s;
+}
+
+@keyframes gameFormatDrop {
+  from {
+    opacity: 0;
+    transform: translateY(-6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.gameFormatMenu__item:hover {
+  color: var(--fg);
+}
+
+.frenzyTimer {
+  margin: 0 0 10px;
+  text-align: center;
+  font-weight: 800;
+  font-size: 15px;
+  letter-spacing: 0.06em;
+  color: var(--yellow);
+  min-height: 1.35em;
+}
+
 .header--subpage {
   grid-template-columns: auto minmax(0, 1fr) auto;
 }
@@ -135,6 +232,21 @@ body {
   max-width: 640px;
   margin: 0 auto;
   padding: 20px 16px 32px;
+}
+
+.subpageMain--centered {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 40vh;
+}
+
+.subpageComingSoon {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: var(--muted);
 }
 
 .subpageNote {
@@ -201,18 +313,25 @@ body {
   text-transform: uppercase;
 }
 
-.difficultySelect {
-  background: transparent;
-  color: var(--fg);
+.difficultyToggle {
+  margin: 0;
   border: 0;
-  border-radius: 0;
   padding: 2px 4px;
-  font-weight: 700;
+  background: transparent;
+  color: var(--muted);
+  font: inherit;
+  font-weight: 800;
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  cursor: pointer;
+  touch-action: manipulation;
   min-width: 0;
-  appearance: none;
-  -webkit-appearance: none;
-  -moz-appearance: none;
-  background-image: none;
+}
+
+.difficultyToggle:hover {
+  color: var(--fg);
+  opacity: 0.92;
 }
 
 .iconButton {
@@ -455,9 +574,8 @@ body {
   margin-inline: auto;
 }
 
-.difficultySelect--toolbar {
+.difficultyToggle--toolbar {
   text-align: center;
-  text-align-last: center;
 }
 
 .toolbarIconLink {
@@ -836,10 +954,11 @@ body {
     letter-spacing: 0.08em;
     padding: 6px 0;
   }
-  .difficultySelect {
+  .difficultyToggle {
     min-width: 0;
     padding: 2px 4px;
-    font-size: 12px;
+    font-size: 10px;
+    letter-spacing: 0.08em;
   }
   .keyboardToolbar__group {
     column-gap: 18px;

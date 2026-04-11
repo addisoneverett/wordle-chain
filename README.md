@@ -25,6 +25,14 @@ Then open:
 - `Medium`: 5-word chains, **3–6** letter words, 3 hints
 - `Hard`: 5-word chains, **3–8** letter words, 1 hint
 
+Default difficulty is **Medium** (including on first load).
+
+## Game formats
+Use the header control (click the current mode name) to switch **Standard**, **Endless**, or **Frenzy**:
+- **Standard**: solve a fixed five-word chain.
+- **Endless** / **Frenzy**: guess successive words in a long hidden chain (same rules and hints as Endless).
+- **Frenzy**: like Endless, with a per-word countdown (Easy **30s**, Medium **20s**, Hard **10s**). On the **first word** of a run, the countdown starts only after you type or use a hint. If time runs out, the run ends like a failed guess.
+
 ## Customize words
 Edit `words.js`:
 - `ANSWERS`: possible secret words

@@ -1,10 +1,40 @@
-import { ALL_PHRASE_CHAINS } from "./wordChains.js";
+import { ALL_PHRASE_CHAINS, phrasePairKey, getCuratedPhrasePairSet } from "./wordChains.js";
 
 const MIN_WORD_LEN = 3;
 
+/** Mirrors app.js DIFFICULTY per-word limits for Endless / Frenzy walks. */
+const WORD_LEN_BOUNDS = {
+  easy: { minLen: 3, maxLen: 5 },
+  medium: { minLen: 3, maxLen: 6 },
+  hard: { minLen: 3, maxLen: 8 },
+};
+
+/** @param {string} w @param {string} difficulty */
+function wordMatchesDifficultyBounds(w, difficulty) {
+  const b = WORD_LEN_BOUNDS[/** @type {keyof typeof WORD_LEN_BOUNDS} */ (difficulty)] || WORD_LEN_BOUNDS.medium;
+  const L = w.length;
+  return L >= b.minLen && L <= b.maxLen;
+}
+
+/** @param {string[]} words @param {string} difficulty */
+function filterByDifficultyLength(words, difficulty) {
+  return words.filter((w) => wordMatchesDifficultyBounds(w, difficulty));
+}
+
 /** @param {string} a @param {string} b */
 export function pairKey(a, b) {
-  return `${a}\n${b}`;
+  return phrasePairKey(a, b);
+}
+
+/**
+ * Among length-valid successors, prefer those whose a→b step appears in {@link WORD_CHAINS}
+ * so walks stay on explicitly curated collocations (especially when easy caps word length).
+ */
+function preferCuratedPhraseNeighbors(cur, nexts) {
+  if (nexts.length === 0) return nexts;
+  const curated = getCuratedPhrasePairSet();
+  const preferred = nexts.filter((n) => curated.has(phrasePairKey(cur, n)));
+  return preferred.length > 0 ? preferred : nexts;
 }
 
 /**
@@ -75,10 +105,14 @@ export function appendOnePhraseStep(adj, path, usedPairs, difficulty) {
   if (path.length === 0) return false;
   const cur = path[path.length - 1];
   const raw = adj.get(cur) || [];
-  const nexts = raw.filter((n) => !usedPairs.has(pairKey(cur, n)));
-  const next = pickNextStep(nexts, difficulty);
+  const nexts = filterByDifficultyLength(
+    raw.filter((n) => !usedPairs.has(phrasePairKey(cur, n))),
+    difficulty,
+  );
+  const pool = preferCuratedPhraseNeighbors(cur, nexts);
+  const next = pickNextStep(pool, difficulty);
   if (!next) return false;
-  usedPairs.add(pairKey(cur, next));
+  usedPairs.add(phrasePairKey(cur, next));
   path.push(next);
   return true;
 }
@@ -103,10 +137,11 @@ export function appendOnePhraseStepRelaxed(adj, path, difficulty) {
   if (path.length === 0) return false;
   const cur = path[path.length - 1];
   const prev = path.length >= 2 ? path[path.length - 2] : null;
-  const raw = adj.get(cur) || [];
+  const raw = filterByDifficultyLength(adj.get(cur) || [], difficulty);
   let nexts = prev != null ? raw.filter((n) => n !== prev) : raw;
   if (nexts.length === 0) nexts = raw;
-  const next = pickNextStep(nexts, difficulty);
+  const pool = preferCuratedPhraseNeighbors(cur, nexts);
+  const next = pickNextStep(pool, difficulty);
   if (!next) return false;
   path.push(next);
   return true;
@@ -150,9 +185,11 @@ export function buildEndlessSeedChain(adj, minWords = ENDLESS_SEED_MIN_WORDS, di
   const longStrict = generateLongChain({ minLen: target, maxLen: target + 16, difficulty });
   if (longStrict.length >= target) return longStrict;
 
-  const starts = [...adj.keys()].filter((k) => (adj.get(k) || []).length > 0);
+  const starts = [...adj.keys()].filter(
+    (k) => wordMatchesDifficultyBounds(k, difficulty) && (adj.get(k) || []).length > 0,
+  );
   if (starts.length === 0) {
-    return ["brain", "storm", "drain", "pipe", "dream", "job"];
+    return filterByDifficultyLength(["brain", "storm", "drain", "pipe", "dream", "job"], difficulty);
   }
 
   /** One relaxed walk stops at the first dead end; that often ends well before `target`.
@@ -196,7 +233,8 @@ export function buildEndlessSeedChain(adj, minWords = ENDLESS_SEED_MIN_WORDS, di
   growPhrasePathRelaxedUntilBlocked(adj, merged, difficulty, maxWalkSteps);
   growPhrasePathRelaxed(adj, merged, target, difficulty);
   consider(merged);
-  return best.length >= 2 ? best : ["brain", "storm", "drain", "pipe", "dream", "job"];
+  if (best.length >= 2) return best;
+  return filterByDifficultyLength(["brain", "storm", "drain", "pipe", "dream", "job"], difficulty);
 }
 
 /**
@@ -212,9 +250,11 @@ export function generateLongChain(opts = {}, chains = ALL_PHRASE_CHAINS) {
   const target = minLen + Math.floor(Math.random() * (maxLen - minLen + 1));
   const difficulty = opts.difficulty || "medium";
 
-  const starts = [...adj.keys()].filter((k) => (adj.get(k) || []).length > 0);
+  const starts = [...adj.keys()].filter(
+    (k) => wordMatchesDifficultyBounds(k, difficulty) && (adj.get(k) || []).length > 0,
+  );
   if (starts.length === 0) {
-    return ["brain", "storm", "drain", "pipe", "dream", "job"];
+    return filterByDifficultyLength(["brain", "storm", "drain", "pipe", "dream", "job"], difficulty);
   }
 
   for (let attempt = 0; attempt < 400; attempt++) {
@@ -231,7 +271,11 @@ export function generateLongChain(opts = {}, chains = ALL_PHRASE_CHAINS) {
     const words = ch.map((w) => w.toLowerCase()).filter((w) => w.length >= MIN_WORD_LEN);
     if (words.length > best.length) best = words;
   }
-  const fallback = best.length >= 2 ? best : ["brain", "storm", "drain", "pipe", "dream", "job"];
+  let fallback = best.length >= 2 ? best : ["brain", "storm", "drain", "pipe", "dream", "job"];
+  fallback = filterByDifficultyLength(fallback, difficulty);
+  if (fallback.length < 2) {
+    fallback = filterByDifficultyLength(["brain", "storm", "drain", "pipe", "dream", "job"], difficulty);
+  }
   const grown = [...fallback];
   growPhrasePathRelaxed(adj, grown, minLen, difficulty);
   return grown.length >= minLen ? grown : fallback;

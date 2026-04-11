@@ -1,5 +1,5 @@
 import { ANSWERS } from "./words.js";
-import { WORD_CHAINS } from "./wordChains.js";
+import { WORD_CHAINS, chainHasOnlyCuratedPhrasePairs } from "./wordChains.js";
 import {
   collectGraphVocabulary,
   getPhraseAdjacency,
@@ -16,20 +16,30 @@ const DIFFICULTY = {
   hard: { chainLen: 5, minLen: 3, maxLen: 8, hints: 1 },
 };
 
-/** Endless mode: hints and max guess rows per target word. */
+/** Endless / Frenzy: hints and max guess rows per target word. */
 const ENDLESS_MODE_CONFIG = {
   easy: { hints: 5, maxGuessesPerWord: 5 },
   medium: { hints: 5, maxGuessesPerWord: 5 },
   hard: { hints: 1, maxGuessesPerWord: 1 },
 };
 
+/** Frenzy: seconds per word before the run ends (same rules as Endless otherwise). */
+const FRENZY_SECONDS_PER_WORD = {
+  easy: 60,
+  medium: 30,
+  hard: 10,
+};
+
 const LEADERBOARD_KEY = "wordleChainEndlessLeaderboard";
+
+/** @type {readonly ("easy"|"medium"|"hard")[]} */
+const DIFFICULTY_CYCLE = ["easy", "medium", "hard"];
 
 /** @typedef {"empty"|"active"|"green"|"yellow"|"gray"} TileState */
 
 const historyEl = document.getElementById("history");
 const chainDividerEl = document.getElementById("chainDivider");
-const difficultySelectEl = document.getElementById("difficultySelect");
+const difficultyToggleEl = document.getElementById("difficultyToggle");
 const difficultyWrapEl = document.getElementById("difficultyWrap");
 const headerTitleEl = document.getElementById("headerTitle");
 const gridEl = document.getElementById("grid");
@@ -46,7 +56,10 @@ const hintBtn = document.getElementById("hintBtn");
 const hintCountEl = document.getElementById("hintCount");
 const answerBtn = document.getElementById("answerBtn");
 const newGameBtn = document.getElementById("newGameBtn");
-const endlessBtn = document.getElementById("endlessBtn");
+const gameFormatWrap = document.getElementById("gameFormatWrap");
+const gameFormatBtn = document.getElementById("gameFormatBtn");
+const gameFormatMenu = document.getElementById("gameFormatMenu");
+const frenzyTimerEl = document.getElementById("frenzyTimer");
 const endlessSolvedPreviewEl = document.getElementById("endlessSolvedPreview");
 const endlessProgressEl = document.getElementById("endlessProgress");
 const endlessCounterValueEl = document.getElementById("endlessCounterValue");
@@ -86,11 +99,17 @@ let row = 0;
 let col = 0;
 let isOver = false;
 let chainComplete = false;
-let currentMode = "easy";
-let hintsLeft = DIFFICULTY.easy.hints;
+let currentMode = "medium";
+let hintsLeft = DIFFICULTY.medium.hints;
 let hintsUsed = 0;
 let guessesUsedTotal = 0;
-let endlessMode = false;
+/** @type {"standard"|"endless"|"frenzy"} */
+let gameFormat = "standard";
+
+let frenzyTimerId = 0;
+let frenzyDeadlineMs = 0;
+/** First word of a Frenzy run: countdown starts only after the player types (or uses a hint). */
+let frenzyDeferTimerUntilKeypress = false;
 
 /** @type {string[]} */
 let endlessHiddenChain = [];
@@ -146,6 +165,91 @@ function getModeConfig() {
   return DIFFICULTY[currentMode] || DIFFICULTY.medium;
 }
 
+function syncDifficultyToggleUi() {
+  if (!difficultyToggleEl) return;
+  if (!DIFFICULTY_CYCLE.includes(/** @type {"easy"|"medium"|"hard"} */ (currentMode))) {
+    currentMode = "medium";
+  }
+  const labels = { easy: "EASY", medium: "MEDIUM", hard: "HARD" };
+  difficultyToggleEl.textContent = labels[currentMode];
+  difficultyToggleEl.dataset.mode = currentMode;
+  difficultyToggleEl.setAttribute("aria-label", `Difficulty: ${currentMode}`);
+}
+
+function isEndlessLike() {
+  return gameFormat === "endless" || gameFormat === "frenzy";
+}
+
+function closeGameFormatMenu() {
+  if (!gameFormatMenu || !gameFormatBtn) return;
+  gameFormatMenu.classList.add("hiddenSection");
+  gameFormatMenu.setAttribute("aria-hidden", "true");
+  gameFormatBtn.setAttribute("aria-expanded", "false");
+}
+
+function clearFrenzyTimer() {
+  if (frenzyTimerId) {
+    window.clearInterval(frenzyTimerId);
+    frenzyTimerId = 0;
+  }
+  frenzyDeadlineMs = 0;
+  if (frenzyTimerEl) {
+    frenzyTimerEl.textContent = "";
+    frenzyTimerEl.classList.add("hiddenSection");
+  }
+}
+
+function updateFrenzyTimerDisplay() {
+  if (!frenzyTimerEl) return;
+  if (gameFormat !== "frenzy" || isOver || !dictionaryReady) {
+    frenzyTimerEl.textContent = "";
+    frenzyTimerEl.classList.add("hiddenSection");
+    return;
+  }
+  frenzyTimerEl.classList.remove("hiddenSection");
+  if (frenzyDeferTimerUntilKeypress && endlessWordIndex === 1) {
+    const sec = FRENZY_SECONDS_PER_WORD[currentMode] ?? FRENZY_SECONDS_PER_WORD.medium;
+    frenzyTimerEl.textContent = `${sec}s`;
+    return;
+  }
+  if (frenzyDeadlineMs <= 0 && !frenzyTimerId) {
+    frenzyTimerEl.textContent = "";
+    frenzyTimerEl.classList.add("hiddenSection");
+    return;
+  }
+  const leftSec = Math.max(0, (frenzyDeadlineMs - Date.now()) / 1000);
+  frenzyTimerEl.textContent = `${Math.ceil(leftSec)}s`;
+}
+
+function maybeStartDeferredFrenzyTimer() {
+  if (gameFormat !== "frenzy" || isOver || !dictionaryReady) return;
+  if (!frenzyDeferTimerUntilKeypress) return;
+  if (endlessWordIndex !== 1) return;
+  if ((guesses[row] || "").length < 1) return;
+  frenzyDeferTimerUntilKeypress = false;
+  startFrenzyTimer();
+}
+
+function startFrenzyTimer() {
+  clearFrenzyTimer();
+  if (gameFormat !== "frenzy" || isOver || !dictionaryReady) return;
+  const sec = FRENZY_SECONDS_PER_WORD[currentMode] ?? FRENZY_SECONDS_PER_WORD.medium;
+  frenzyDeadlineMs = Date.now() + sec * 1000;
+  updateFrenzyTimerDisplay();
+  frenzyTimerId = window.setInterval(() => {
+    if (isOver || gameFormat !== "frenzy") {
+      clearFrenzyTimer();
+      return;
+    }
+    updateFrenzyTimerDisplay();
+    if (Date.now() >= frenzyDeadlineMs) {
+      clearFrenzyTimer();
+      endlessRunWrongWords += 1;
+      endEndlessRunFailure();
+    }
+  }, 200);
+}
+
 function updateHintButton() {
   if (hintCountEl) hintCountEl.textContent = String(hintsLeft);
   if (hintBtn) {
@@ -157,11 +261,18 @@ function updateHintButton() {
 
 function pickChain() {
   const cfg = getModeConfig();
-  const candidates = WORD_CHAINS.filter((chain) => {
+  const matchesDifficulty = (/** @type {string[]} */ chain) => {
     if (chain.length !== cfg.chainLen) return false;
     return chain.every((w) => w.length >= cfg.minLen && w.length <= cfg.maxLen);
-  });
-  const pool = candidates.length > 0 ? candidates : WORD_CHAINS;
+  };
+  const curatedPairsOnly = (/** @type {string[]} */ chain) =>
+    chainHasOnlyCuratedPhrasePairs(chain.map((w) => w.toLowerCase()));
+
+  const candidates = WORD_CHAINS.filter((chain) => matchesDifficulty(chain) && curatedPairsOnly(chain));
+  const sameLenCurated = WORD_CHAINS.filter(
+    (chain) => chain.length === cfg.chainLen && curatedPairsOnly(chain),
+  );
+  const pool = candidates.length > 0 ? candidates : sameLenCurated.length > 0 ? sameLenCurated : WORD_CHAINS;
   const idx = Math.floor(Math.random() * pool.length);
   return pool[idx].map((w) => w.toLowerCase());
 }
@@ -205,11 +316,11 @@ async function loadDictionary() {
     }
     seedGraphWordsIntoDictionary();
     dictionaryReady = true;
-    if (!endlessMode && solvedWords.length === 0 && row === 0 && guesses[0] === "") {
+    if (!isEndlessLike() && solvedWords.length === 0 && row === 0 && guesses[0] === "") {
       prepareNextRound();
     }
     if (
-      endlessMode &&
+      isEndlessLike() &&
       endlessHiddenChain.length > 0 &&
       guessesUsedTotal === 0 &&
       row === 0 &&
@@ -231,11 +342,11 @@ async function loadDictionary() {
     }
     seedGraphWordsIntoDictionary();
     dictionaryReady = true;
-    if (!endlessMode && solvedWords.length === 0 && row === 0 && guesses[0] === "") {
+    if (!isEndlessLike() && solvedWords.length === 0 && row === 0 && guesses[0] === "") {
       prepareNextRound();
     }
     if (
-      endlessMode &&
+      isEndlessLike() &&
       endlessHiddenChain.length > 0 &&
       guessesUsedTotal === 0 &&
       row === 0 &&
@@ -352,7 +463,7 @@ function buildSolvedRow(word) {
 }
 
 function renderHistory() {
-  if (endlessMode) {
+  if (isEndlessLike()) {
     historyEl.innerHTML = "";
     chainDividerEl.dataset.show = endlessRunScore > 0 && !isOver ? "true" : "false";
     return;
@@ -372,7 +483,7 @@ function renderHistory() {
 
 function renderEndlessProgress() {
   if (!endlessProgressEl || !endlessSolvedPreviewEl || !endlessCounterValueEl || !endlessCounterChipsEl) return;
-  if (!endlessMode || endlessHiddenChain.length === 0) {
+  if (!isEndlessLike() || endlessHiddenChain.length === 0) {
     endlessProgressEl.classList.add("hiddenSection");
     endlessSolvedPreviewEl.classList.add("hiddenSection");
     endlessSolvedPreviewEl.innerHTML = "";
@@ -382,7 +493,16 @@ function renderEndlessProgress() {
   endlessProgressEl.classList.remove("hiddenSection");
   endlessSolvedPreviewEl.classList.remove("hiddenSection");
   endlessSolvedPreviewEl.innerHTML = "";
-  if (endlessRunScore > 0 && endlessWordIndex >= 1 && endlessHiddenChain.length >= endlessWordIndex) {
+  /** Hard Endless/Frenzy: show the phrase anchor before any guess on the first target word. */
+  const showHardChainStarter =
+    currentMode === "hard" &&
+    endlessWordIndex === 1 &&
+    endlessHiddenChain.length >= 2 &&
+    !isOver &&
+    !(marks[0]?.some((m) => m !== "empty"));
+  if (showHardChainStarter) {
+    endlessSolvedPreviewEl.appendChild(buildSolvedRow(endlessHiddenChain[0]));
+  } else if (endlessRunScore > 0 && endlessWordIndex >= 1 && endlessHiddenChain.length >= endlessWordIndex) {
     endlessSolvedPreviewEl.appendChild(buildSolvedRow(endlessHiddenChain[endlessWordIndex - 1]));
   }
   endlessCounterValueEl.textContent = String(endlessRunScore);
@@ -454,7 +574,7 @@ function getTile(r, c) {
 }
 
 function maxGuessRows() {
-  return endlessMode ? endlessEffectiveMaxGuesses : MAX_GUESSES;
+  return isEndlessLike() ? endlessEffectiveMaxGuesses : MAX_GUESSES;
 }
 
 function render() {
@@ -473,11 +593,12 @@ function render() {
     }
   }
 
-  if (endlessMode) {
+  if (isEndlessLike()) {
     statusTextEl.textContent = `Best streak ${endlessBestStreak}`;
     renderEndlessProgress();
     renderHistory();
     updateHintButton();
+    updateFrenzyTimerDisplay();
     return;
   }
 
@@ -494,6 +615,7 @@ function render() {
 }
 
 function prepareNextRound() {
+  clearFrenzyTimer();
   answer = pickAnswer();
   currentWordLen = answer.length;
   guesses = Array.from({ length: MAX_GUESSES }, () => "");
@@ -523,6 +645,8 @@ function ensureEndlessChainContinues() {
 }
 
 function prepareEndlessWordRound() {
+  clearFrenzyTimer();
+  frenzyDeferTimerUntilKeypress = false;
   ensureEndlessChainContinues();
   if (endlessHiddenChain.length < 2) {
     const adj = getPhraseAdjacency();
@@ -562,10 +686,18 @@ function prepareEndlessWordRound() {
   renderEndlessProgress();
   renderHistory();
   render();
+  if (gameFormat === "frenzy" && dictionaryReady) {
+    if (endlessWordIndex === 1) {
+      frenzyDeferTimerUntilKeypress = true;
+      updateFrenzyTimerDisplay();
+    } else {
+      frenzyDeferTimerUntilKeypress = false;
+      startFrenzyTimer();
+    }
+  }
 }
 
 function initEndlessGame() {
-  currentMode = difficultySelectEl.value || "medium";
   const cfg = ENDLESS_MODE_CONFIG[currentMode] || ENDLESS_MODE_CONFIG.medium;
   hintsLeft = cfg.hints;
   hintsUsed = 0;
@@ -579,6 +711,7 @@ function initEndlessGame() {
   currentChain = [];
   endlessWordIndex = 1;
   const endlessMinBuffer = Math.max(30, endlessWordIndex + 1 + ENDLESS_LOOKAHEAD, 32);
+  // phraseGraph enforces per-mode word lengths (3–5 / 3–6 / 3–8) on hidden chains, not only pickNextStep bias.
   endlessHiddenChain = buildEndlessSeedChain(
     getPhraseAdjacency(),
     endlessMinBuffer,
@@ -609,6 +742,8 @@ function saveEndlessLeaderboardEntry() {
 }
 
 function endEndlessRunFailure() {
+  clearFrenzyTimer();
+  frenzyDeferTimerUntilKeypress = false;
   isOver = true;
   endlessRunStreak = 0;
   saveEndlessLeaderboardEntry();
@@ -654,16 +789,16 @@ function renderStarRating() {
 }
 
 function updateFormatUi() {
-  if (!endlessBtn) return;
-  endlessBtn.textContent = endlessMode ? "STANDARD" : "ENDLESS";
-  endlessBtn.dataset.active = endlessMode ? "true" : "false";
-  endlessBtn.setAttribute("aria-pressed", endlessMode ? "true" : "false");
-  document.body.dataset.gameMode = endlessMode ? "endless" : "standard";
+  if (!gameFormatBtn) return;
+  const labels = { standard: "STANDARD", endless: "ENDLESS", frenzy: "FRENZY" };
+  gameFormatBtn.textContent = labels[gameFormat] || "STANDARD";
+  gameFormatBtn.dataset.active = gameFormat !== "standard" ? "true" : "false";
+  document.body.dataset.gameMode = gameFormat;
 }
 
 function syncEndlessToolbar() {
   if (difficultyWrapEl) {
-    difficultyWrapEl.hidden = !!(endlessMode && currentMode === "hard");
+    difficultyWrapEl.hidden = false;
   }
   if (hintBtn) {
     hintBtn.style.display = "";
@@ -730,6 +865,7 @@ function commitGuessEndless() {
   render();
 
   if (guessLower === answer) {
+    clearFrenzyTimer();
     endlessRunScore += 1;
     endlessRunStreak += 1;
     if (endlessRunStreak > endlessBestStreak) endlessBestStreak = endlessRunStreak;
@@ -751,7 +887,7 @@ function commitGuessEndless() {
 }
 
 async function commitGuess() {
-  if (endlessMode) {
+  if (isEndlessLike()) {
     commitGuessEndless();
     return;
   }
@@ -831,18 +967,20 @@ function handleInput(key) {
     guesses[row] = (guesses[row] + key).slice(0, currentWordLen);
     col = guesses[row].length;
     render();
+    maybeStartDeferredFrenzyTimer();
   }
 }
 
 function resetChain() {
-  currentMode = difficultySelectEl.value || "medium";
+  clearFrenzyTimer();
+  frenzyDeferTimerUntilKeypress = false;
   closeModal();
   confettiLayerEl.innerHTML = "";
   celebrationSectionEl.classList.add("hiddenSection");
   starRatingEl.innerHTML = "";
   ratingMetaEl.textContent = "";
 
-  if (endlessMode) {
+  if (isEndlessLike()) {
     initEndlessGame();
   } else {
     hintsLeft = getModeConfig().hints;
@@ -855,6 +993,7 @@ function resetChain() {
 
   updateFormatUi();
   syncEndlessToolbar();
+  syncDifficultyToggleUi();
 }
 
 buildKeyboard();
@@ -863,13 +1002,40 @@ loadDictionary();
 maybeShowHowTo();
 
 newGameBtn.addEventListener("click", () => {
-  endlessMode = false;
   resetChain();
 });
 
-endlessBtn?.addEventListener("click", () => {
-  endlessMode = !endlessMode;
+gameFormatBtn?.addEventListener("click", (e) => {
+  e.stopPropagation();
+  if (!gameFormatMenu) return;
+  const menuHidden = gameFormatMenu.classList.contains("hiddenSection");
+  if (menuHidden) {
+    gameFormatMenu.classList.remove("hiddenSection");
+    gameFormatMenu.setAttribute("aria-hidden", "false");
+    gameFormatBtn.setAttribute("aria-expanded", "true");
+  } else {
+    closeGameFormatMenu();
+  }
+});
+
+gameFormatMenu?.addEventListener("click", (e) => {
+  const t = /** @type {HTMLElement|null} */ (e.target?.closest?.("[data-format]"));
+  if (!t || !t.dataset.format) return;
+  e.stopPropagation();
+  const fmt = /** @type {"standard"|"endless"|"frenzy"} */ (t.dataset.format);
+  if (fmt === gameFormat) {
+    closeGameFormatMenu();
+    return;
+  }
+  gameFormat = fmt;
   resetChain();
+  closeGameFormatMenu();
+});
+
+document.addEventListener("click", (e) => {
+  if (gameFormatWrap && !gameFormatWrap.contains(/** @type {Node} */ (e.target))) {
+    closeGameFormatMenu();
+  }
 });
 
 chainPlayAgainBtn.addEventListener("click", resetChain);
@@ -890,6 +1056,11 @@ window.addEventListener("keydown", (e) => {
       e.preventDefault();
       dismissHowTo();
     }
+    return;
+  }
+  if (e.key === "Escape" && gameFormatMenu && !gameFormatMenu.classList.contains("hiddenSection")) {
+    e.preventDefault();
+    closeGameFormatMenu();
     return;
   }
   if (e.metaKey || e.ctrlKey || e.altKey) return;
@@ -915,10 +1086,11 @@ function handleHintClick() {
   col = guesses[row].length;
   hintsLeft -= 1;
   hintsUsed += 1;
-  if (endlessMode) {
+  if (isEndlessLike()) {
     endlessRunHints += 1;
   }
   render();
+  maybeStartDeferredFrenzyTimer();
 }
 
 hintBtn.addEventListener("click", handleHintClick);
@@ -929,8 +1101,11 @@ answerBtn.addEventListener("click", () => {
   showToast(`Answer: ${answer.toUpperCase()}`, 1600);
 });
 
-difficultySelectEl.addEventListener("change", () => {
-  showToast(`Mode set to ${difficultySelectEl.value}`, 1000);
+difficultyToggleEl?.addEventListener("click", () => {
+  const i = DIFFICULTY_CYCLE.indexOf(/** @type {"easy"|"medium"|"hard"} */ (currentMode));
+  const idx = i >= 0 ? i : 1;
+  currentMode = DIFFICULTY_CYCLE[(idx + 1) % DIFFICULTY_CYCLE.length];
+  syncDifficultyToggleUi();
   resetChain();
 });
 

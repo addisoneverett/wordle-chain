@@ -58,3 +58,42 @@ export const EXTENDED_PHRASE_CHAINS = [];
 
 /** All chains used to construct the phrase adjacency graph. */
 export const ALL_PHRASE_CHAINS = [...WORD_CHAINS, ...EXTENDED_PHRASE_CHAINS, ...ENDLESS_BACKBONE_CHAINS];
+
+const MIN_PAIR_WORD_LEN = 3;
+
+/** Stable key for a directed phrase step a → b (lowercase). */
+export function phrasePairKey(a, b) {
+  return `${String(a).toLowerCase().trim()}\n${String(b).toLowerCase().trim()}`;
+}
+
+let _curatedPhrasePairSet = null;
+
+/** Directed edges from {@link WORD_CHAINS} only — vetted “common phrase” pairs for Standard + graph walks. */
+export function getCuratedPhrasePairSet() {
+  if (_curatedPhrasePairSet) return _curatedPhrasePairSet;
+  /** @type {Set<string>} */
+  const s = new Set();
+  for (const chain of WORD_CHAINS) {
+    const words = chain.map((w) => String(w).toLowerCase().trim());
+    for (let i = 0; i < words.length - 1; i++) {
+      const x = words[i];
+      const y = words[i + 1];
+      if (x.length < MIN_PAIR_WORD_LEN || y.length < MIN_PAIR_WORD_LEN) continue;
+      s.add(phrasePairKey(x, y));
+    }
+  }
+  _curatedPhrasePairSet = s;
+  return _curatedPhrasePairSet;
+}
+
+/**
+ * True iff every consecutive pair appears in {@link WORD_CHAINS} (curated collocations).
+ * @param {string[]} wordsLower Already lowercased words.
+ */
+export function chainHasOnlyCuratedPhrasePairs(wordsLower) {
+  const curated = getCuratedPhrasePairSet();
+  for (let i = 0; i < wordsLower.length - 1; i++) {
+    if (!curated.has(phrasePairKey(wordsLower[i], wordsLower[i + 1]))) return false;
+  }
+  return true;
+}

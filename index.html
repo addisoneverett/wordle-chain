@@ -14,15 +14,23 @@
         </div>
         <h1 class="header__title" id="headerTitle">Wordle Chain</h1>
         <div class="header__trailing">
-          <button
-            class="formatPill"
-            id="endlessBtn"
-            type="button"
-            aria-label="Toggle Endless word chain mode"
-            title="Endless: guess the next word in a long hidden chain"
-          >
-            ENDLESS
-          </button>
+          <div class="gameFormatWrap" id="gameFormatWrap">
+            <button
+              type="button"
+              class="formatPill formatPill--menu"
+              id="gameFormatBtn"
+              aria-haspopup="true"
+              aria-expanded="false"
+              aria-label="Game mode"
+            >
+              STANDARD
+            </button>
+            <div id="gameFormatMenu" class="gameFormatMenu hiddenSection" role="menu" aria-hidden="true">
+              <button type="button" class="gameFormatMenu__item" role="menuitem" data-format="standard">Standard</button>
+              <button type="button" class="gameFormatMenu__item" role="menuitem" data-format="endless">Endless</button>
+              <button type="button" class="gameFormatMenu__item" role="menuitem" data-format="frenzy">Frenzy</button>
+            </div>
+          </div>
         </div>
       </header>
 
@@ -48,14 +56,19 @@
         </section>
 
         <section class="keyboard" id="keyboardSection" aria-label="Keyboard">
+          <p class="frenzyTimer hiddenSection" id="frenzyTimer" aria-live="polite"></p>
           <div class="keyboardToolbar" aria-label="Game controls">
             <div class="keyboardToolbar__group">
               <span class="difficultyWrap" id="difficultyWrap">
-                <select id="difficultySelect" class="difficultySelect difficultySelect--toolbar" aria-label="Difficulty mode">
-                  <option value="easy" selected>Easy</option>
-                  <option value="medium">Medium</option>
-                  <option value="hard">Hard</option>
-                </select>
+                <button
+                  type="button"
+                  id="difficultyToggle"
+                  class="difficultyToggle difficultyToggle--toolbar"
+                  data-mode="medium"
+                  aria-label="Difficulty: medium"
+                >
+                  MEDIUM
+                </button>
               </span>
               <a
                 class="toolbarIconLink"
