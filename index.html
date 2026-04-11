@@ -18,8 +18,8 @@
             class="formatPill"
             id="endlessBtn"
             type="button"
-            aria-label="Endless mode"
-            title="Endless — chains keep going"
+            aria-label="Toggle Endless word chain mode"
+            title="Endless: guess the next word in a long hidden chain"
           >
             ENDLESS
           </button>
@@ -28,6 +28,19 @@
 
       <main class="main">
         <section class="board" aria-label="Board">
+          <div class="endlessProgress hiddenSection" id="endlessProgress" aria-label="Endless run progress">
+            <div class="endlessProgress__row">
+              <span class="endlessProgress__count" id="endlessCounterValue">0</span>
+              <span class="endlessProgress__label">words solved</span>
+            </div>
+            <div class="endlessProgress__chips" id="endlessCounterChips" aria-hidden="true"></div>
+          </div>
+          <div
+            class="history endlessSolvedPreview hiddenSection"
+            id="endlessSolvedPreview"
+            aria-label="Last solved word"
+            aria-live="polite"
+          ></div>
           <div class="history" id="history" aria-label="Solved words"></div>
           <div class="chainDivider" id="chainDivider" aria-hidden="true"></div>
           <div class="grid" id="grid" aria-label="Guesses grid"></div>
@@ -37,11 +50,13 @@
         <section class="keyboard" id="keyboardSection" aria-label="Keyboard">
           <div class="keyboardToolbar" aria-label="Game controls">
             <div class="keyboardToolbar__group">
-              <select id="difficultySelect" class="difficultySelect difficultySelect--toolbar" aria-label="Difficulty mode">
-                <option value="easy" selected>Easy</option>
-                <option value="medium">Medium</option>
-                <option value="hard">Hard</option>
-              </select>
+              <span class="difficultyWrap" id="difficultyWrap">
+                <select id="difficultySelect" class="difficultySelect difficultySelect--toolbar" aria-label="Difficulty mode">
+                  <option value="easy" selected>Easy</option>
+                  <option value="medium">Medium</option>
+                  <option value="hard">Hard</option>
+                </select>
+              </span>
               <a
                 class="toolbarIconLink"
                 href="./leaderboard.html"

@@ -1,20 +1,36 @@
 import { ANSWERS } from "./words.js";
 import { WORD_CHAINS } from "./wordChains.js";
+import {
+  collectGraphVocabulary,
+  getPhraseAdjacency,
+  growPhrasePathRelaxed,
+  buildEndlessSeedChain,
+} from "./phraseGraph.js";
 
 const MAX_GUESSES = 5;
 const MIN_WORD_LEN = 3;
-const MAX_WORD_LEN = 8;
+const MAX_WORD_LEN = 12;
 const DIFFICULTY = {
-  easy: { chainLen: 4, minLen: 3, maxLen: 5, hints: 5 },
-  medium: { chainLen: 5, minLen: 4, maxLen: 6, hints: 3 },
-  hard: { chainLen: 6, minLen: 5, maxLen: 8, hints: 1 },
+  easy: { chainLen: 5, minLen: 3, maxLen: 12, hints: 5 },
+  medium: { chainLen: 5, minLen: 3, maxLen: 12, hints: 3 },
+  hard: { chainLen: 5, minLen: 3, maxLen: 12, hints: 1 },
 };
+
+/** Endless mode: hints and max guess rows per target word. */
+const ENDLESS_MODE_CONFIG = {
+  easy: { hints: 5, maxGuessesPerWord: 5 },
+  medium: { hints: 5, maxGuessesPerWord: 5 },
+  hard: { hints: 1, maxGuessesPerWord: 1 },
+};
+
+const LEADERBOARD_KEY = "wordleChainEndlessLeaderboard";
 
 /** @typedef {"empty"|"active"|"green"|"yellow"|"gray"} TileState */
 
 const historyEl = document.getElementById("history");
 const chainDividerEl = document.getElementById("chainDivider");
 const difficultySelectEl = document.getElementById("difficultySelect");
+const difficultyWrapEl = document.getElementById("difficultyWrap");
 const headerTitleEl = document.getElementById("headerTitle");
 const gridEl = document.getElementById("grid");
 const statusTextEl = document.getElementById("statusText");
@@ -30,6 +46,10 @@ const hintBtn = document.getElementById("hintBtn");
 const answerBtn = document.getElementById("answerBtn");
 const newGameBtn = document.getElementById("newGameBtn");
 const endlessBtn = document.getElementById("endlessBtn");
+const endlessSolvedPreviewEl = document.getElementById("endlessSolvedPreview");
+const endlessProgressEl = document.getElementById("endlessProgress");
+const endlessCounterValueEl = document.getElementById("endlessCounterValue");
+const endlessCounterChipsEl = document.getElementById("endlessCounterChips");
 
 const howToOverlay = document.getElementById("howToOverlay");
 const howToDismissBtn = document.getElementById("howToDismissBtn");
@@ -41,7 +61,6 @@ const closeModalBtn = document.getElementById("closeModalBtn");
 
 const HOW_TO_STORAGE_KEY = "wordleChainHowToDismissed";
 
-/** On localhost, skip saving/reading “seen how-to” so refresh always shows it while you build. */
 function isLocalDevHost() {
   const h = location.hostname;
   return h === "localhost" || h === "127.0.0.1" || h === "[::1]";
@@ -70,8 +89,19 @@ let currentMode = "easy";
 let hintsLeft = DIFFICULTY.easy.hints;
 let hintsUsed = 0;
 let guessesUsedTotal = 0;
-/** Standard chain (celebration + stars) vs endless (auto next chain). */
 let endlessMode = false;
+
+/** @type {string[]} */
+let endlessHiddenChain = [];
+let endlessWordIndex = 1;
+let endlessEffectiveMaxGuesses = MAX_GUESSES;
+let endlessRunScore = 0;
+let endlessRunStreak = 0;
+let endlessBestStreak = 0;
+let endlessRunHints = 0;
+let endlessRunWrongWords = 0;
+
+const ENDLESS_LOOKAHEAD = 24;
 
 /** @type {Map<string, HTMLButtonElement>} */
 const keyButtons = new Map();
@@ -80,6 +110,32 @@ let validWords = new Set(ANSWERS.map((w) => w.toLowerCase()));
 /** @type {Map<number, string[]>} */
 let wordsByLength = new Map();
 let dictionaryReady = false;
+
+function seedGraphWordsIntoDictionary() {
+  for (const w of collectGraphVocabulary()) {
+    validWords.add(w);
+  }
+}
+
+/** Accept guess if it is in the dictionary or a common plural of a dictionary word (e.g. grounds → ground). */
+function isAcceptedGuessWord(w) {
+  if (!w || w.length < MIN_WORD_LEN || w.length > MAX_WORD_LEN) return false;
+  if (validWords.has(w)) return true;
+
+  if (w.length >= MIN_WORD_LEN + 3 && w.endsWith("ies")) {
+    const ySingular = `${w.slice(0, -3)}y`;
+    if (validWords.has(ySingular)) return true;
+  }
+  if (w.length >= MIN_WORD_LEN + 2 && w.endsWith("es")) {
+    const stemEs = w.slice(0, -2);
+    if (validWords.has(stemEs)) return true;
+  }
+  if (w.length >= MIN_WORD_LEN + 1 && w.endsWith("s") && !w.endsWith("ss")) {
+    const stemS = w.slice(0, -1);
+    if (validWords.has(stemS)) return true;
+  }
+  return false;
+}
 
 function pickAnswer() {
   return currentChain[solvedWords.length];
@@ -126,7 +182,7 @@ async function loadDictionary() {
     const words = text
       .split(/\r?\n/)
       .map((w) => w.trim().toLowerCase())
-      .filter((w) => /^[a-z]{3,8}$/.test(w));
+      .filter((w) => /^[a-z]{3,12}$/.test(w));
     validWords = new Set(words);
     wordsByLength = new Map();
     for (let len = MIN_WORD_LEN; len <= MAX_WORD_LEN; len++) wordsByLength.set(len, []);
@@ -137,10 +193,19 @@ async function loadDictionary() {
     for (const chain of WORD_CHAINS) {
       for (const w of chain) validWords.add(w.toLowerCase());
     }
+    seedGraphWordsIntoDictionary();
     dictionaryReady = true;
-    // Refresh the current round so the first game also uses 3-8 length answers.
-    if (solvedWords.length === 0 && row === 0 && guesses[0] === "") {
+    if (!endlessMode && solvedWords.length === 0 && row === 0 && guesses[0] === "") {
       prepareNextRound();
+    }
+    if (
+      endlessMode &&
+      endlessHiddenChain.length > 0 &&
+      guessesUsedTotal === 0 &&
+      row === 0 &&
+      guesses[0] === ""
+    ) {
+      prepareEndlessWordRound();
     }
   } catch {
     validWords = new Set(ANSWERS.map((w) => w.toLowerCase()));
@@ -154,19 +219,23 @@ async function loadDictionary() {
     for (const chain of WORD_CHAINS) {
       for (const w of chain) validWords.add(w.toLowerCase());
     }
+    seedGraphWordsIntoDictionary();
     dictionaryReady = true;
+    if (!endlessMode && solvedWords.length === 0 && row === 0 && guesses[0] === "") {
+      prepareNextRound();
+    }
+    if (
+      endlessMode &&
+      endlessHiddenChain.length > 0 &&
+      guessesUsedTotal === 0 &&
+      row === 0 &&
+      guesses[0] === ""
+    ) {
+      prepareEndlessWordRound();
+    }
   }
 }
 
-/**
- * Standard Wordle scoring with duplicate-letter handling.
- * Two pass:
- *  - greens first
- *  - then yellows based on remaining letter counts
- * @param {string} guessLower
- * @param {string} answerLower
- * @returns {TileState[]}
- */
 function scoreGuess(guessLower, answerLower) {
   const len = answerLower.length;
   /** @type {TileState[]} */
@@ -179,7 +248,6 @@ function scoreGuess(guessLower, answerLower) {
     remaining[a] = (remaining[a] ?? 0) + 1;
   }
 
-  // Pass 1: greens
   for (let i = 0; i < len; i++) {
     if (guessLower[i] === answerLower[i]) {
       out[i] = "green";
@@ -187,7 +255,6 @@ function scoreGuess(guessLower, answerLower) {
     }
   }
 
-  // Pass 2: yellows
   for (let i = 0; i < len; i++) {
     if (out[i] === "green") continue;
     const g = guessLower[i];
@@ -203,7 +270,6 @@ function scoreGuess(guessLower, answerLower) {
 }
 
 function statePriority(state) {
-  // Higher number wins.
   if (state === "purple") return 4;
   if (state === "green") return 3;
   if (state === "yellow") return 2;
@@ -244,7 +310,7 @@ function dismissHowTo() {
   try {
     localStorage.setItem(HOW_TO_STORAGE_KEY, "1");
   } catch {
-    /* ignore quota / private mode */
+    /* ignore */
   }
 }
 
@@ -254,7 +320,7 @@ function maybeShowHowTo() {
     try {
       if (localStorage.getItem(HOW_TO_STORAGE_KEY) === "1") return;
     } catch {
-      /* unreadable storage: show how-to */
+      /* show */
     }
   }
   howToOverlay.classList.remove("hidden");
@@ -276,6 +342,11 @@ function buildSolvedRow(word) {
 }
 
 function renderHistory() {
+  if (endlessMode) {
+    historyEl.innerHTML = "";
+    chainDividerEl.dataset.show = endlessRunScore > 0 && !isOver ? "true" : "false";
+    return;
+  }
   historyEl.innerHTML = "";
   for (let i = 0; i < solvedWords.length; i++) {
     historyEl.appendChild(buildSolvedRow(solvedWords[i]));
@@ -289,9 +360,42 @@ function renderHistory() {
   chainDividerEl.dataset.show = solvedWords.length > 0 && !chainComplete ? "true" : "false";
 }
 
-function buildGrid(wordLen) {
+function renderEndlessProgress() {
+  if (!endlessProgressEl || !endlessSolvedPreviewEl || !endlessCounterValueEl || !endlessCounterChipsEl) return;
+  if (!endlessMode || endlessHiddenChain.length === 0) {
+    endlessProgressEl.classList.add("hiddenSection");
+    endlessSolvedPreviewEl.classList.add("hiddenSection");
+    endlessSolvedPreviewEl.innerHTML = "";
+    endlessCounterChipsEl.innerHTML = "";
+    return;
+  }
+  endlessProgressEl.classList.remove("hiddenSection");
+  endlessSolvedPreviewEl.classList.remove("hiddenSection");
+  endlessSolvedPreviewEl.innerHTML = "";
+  if (endlessRunScore > 0 && endlessWordIndex >= 1 && endlessHiddenChain.length >= endlessWordIndex) {
+    endlessSolvedPreviewEl.appendChild(buildSolvedRow(endlessHiddenChain[endlessWordIndex - 1]));
+  }
+  endlessCounterValueEl.textContent = String(endlessRunScore);
+  endlessCounterChipsEl.innerHTML = "";
+  const cap = 48;
+  const n = Math.min(endlessRunScore, cap);
+  for (let i = 0; i < n; i++) {
+    const chip = document.createElement("span");
+    chip.className = "endlessProgress__chip";
+    endlessCounterChipsEl.appendChild(chip);
+  }
+  if (endlessRunScore > cap) {
+    const more = document.createElement("span");
+    more.className = "endlessProgress__more";
+    more.textContent = `+${endlessRunScore - cap}`;
+    endlessCounterChipsEl.appendChild(more);
+  }
+}
+
+
+function buildGrid(wordLen, numRows = MAX_GUESSES) {
   gridEl.innerHTML = "";
-  for (let r = 0; r < MAX_GUESSES; r++) {
+  for (let r = 0; r < numRows; r++) {
     const rowEl = document.createElement("div");
     rowEl.className = "row";
     rowEl.dataset.row = String(r);
@@ -339,20 +443,35 @@ function getTile(r, c) {
   return /** @type {HTMLElement|null} */ (gridEl.querySelector(`.tile[data-row="${r}"][data-col="${c}"]`));
 }
 
+function maxGuessRows() {
+  return endlessMode ? endlessEffectiveMaxGuesses : MAX_GUESSES;
+}
+
 function render() {
-  for (let r = 0; r < MAX_GUESSES; r++) {
-    const g = guesses[r];
+  const maxR = maxGuessRows();
+  for (let r = 0; r < maxR; r++) {
+    const g = guesses[r] || "";
     for (let c = 0; c < currentWordLen; c++) {
       const tile = getTile(r, c);
       if (!tile) continue;
       tile.textContent = g[c] ? g[c].toUpperCase() : "";
-      let state = marks[r][c];
+      let state = marks[r]?.[c] ?? "empty";
       if (!isOver && r === row && state === "empty") {
         state = g[c] ? "active" : "empty";
       }
       tile.dataset.state = state;
     }
   }
+
+  if (endlessMode) {
+    const gLeft = endlessEffectiveMaxGuesses - row;
+    statusTextEl.textContent = `Score ${endlessRunScore} · Best streak ${endlessBestStreak} · This row ${gLeft}/${endlessEffectiveMaxGuesses} · Hints ${hintsLeft}`;
+    renderEndlessProgress();
+    renderHistory();
+    return;
+  }
+
+  renderEndlessProgress();
 
   const targetWins = currentChain.length;
   const winsLeft = targetWins - solvedWords.length;
@@ -379,9 +498,113 @@ function prepareNextRound() {
   for (const btn of keyButtons.values()) {
     delete btn.dataset.state;
   }
-  buildGrid(currentWordLen);
+  buildGrid(currentWordLen, MAX_GUESSES);
   renderHistory();
   render();
+}
+
+function ensureEndlessChainContinues() {
+  const adj = getPhraseAdjacency();
+  const minLen = Math.max(
+    endlessHiddenChain.length,
+    endlessWordIndex + 1 + ENDLESS_LOOKAHEAD,
+  );
+  growPhrasePathRelaxed(adj, endlessHiddenChain, minLen, currentMode);
+}
+
+function prepareEndlessWordRound() {
+  ensureEndlessChainContinues();
+  if (endlessHiddenChain.length < 2) {
+    const adj = getPhraseAdjacency();
+    growPhrasePathRelaxed(adj, endlessHiddenChain, 2, currentMode);
+  }
+  if (endlessWordIndex >= endlessHiddenChain.length) {
+    isOver = true;
+    endlessWordIndex = endlessHiddenChain.length;
+    renderEndlessProgress();
+    saveEndlessLeaderboardEntry();
+    const tip = endlessHiddenChain[endlessHiddenChain.length - 1]?.toUpperCase() ?? "";
+    openModal(
+      "Run complete",
+      `No phrase links lead out from “${tip}” (dead end in the graph).\n\n${endlessHiddenChain.map((w) => w.toUpperCase()).join(" → ")}\n\nScore ${endlessRunScore} · Best streak ${endlessBestStreak}`,
+    );
+    return;
+  }
+  answer = endlessHiddenChain[endlessWordIndex];
+  currentWordLen = answer.length;
+  const cfg = ENDLESS_MODE_CONFIG[currentMode] || ENDLESS_MODE_CONFIG.medium;
+  endlessEffectiveMaxGuesses = cfg.maxGuessesPerWord;
+  guesses = Array.from({ length: endlessEffectiveMaxGuesses }, () => "");
+  marks = Array.from({ length: endlessEffectiveMaxGuesses }, () =>
+    Array.from({ length: currentWordLen }, () => "empty"),
+  );
+  row = 0;
+  col = 0;
+  isOver = false;
+  chainComplete = false;
+  gridEl.classList.remove("hiddenSection");
+  statusTextEl.classList.remove("hiddenSection");
+  keyboardSectionEl.classList.remove("hiddenSection");
+  for (const btn of keyButtons.values()) {
+    delete btn.dataset.state;
+  }
+  buildGrid(currentWordLen, endlessEffectiveMaxGuesses);
+  renderEndlessProgress();
+  renderHistory();
+  render();
+}
+
+function initEndlessGame() {
+  currentMode = difficultySelectEl.value || "medium";
+  const cfg = ENDLESS_MODE_CONFIG[currentMode] || ENDLESS_MODE_CONFIG.medium;
+  hintsLeft = cfg.hints;
+  hintsUsed = 0;
+  guessesUsedTotal = 0;
+  endlessRunScore = 0;
+  endlessRunStreak = 0;
+  endlessBestStreak = 0;
+  endlessRunHints = 0;
+  endlessRunWrongWords = 0;
+  solvedWords = [];
+  currentChain = [];
+  endlessWordIndex = 1;
+  const endlessMinBuffer = Math.max(30, endlessWordIndex + 1 + ENDLESS_LOOKAHEAD, 32);
+  endlessHiddenChain = buildEndlessSeedChain(
+    getPhraseAdjacency(),
+    endlessMinBuffer,
+    currentMode,
+  );
+  prepareEndlessWordRound();
+  syncEndlessToolbar();
+}
+
+function saveEndlessLeaderboardEntry() {
+  try {
+    const entry = {
+      score: endlessRunScore,
+      bestStreak: endlessBestStreak,
+      hints: endlessRunHints,
+      wrongWords: endlessRunWrongWords,
+      chainLen: endlessHiddenChain.length,
+      mode: currentMode,
+      at: Date.now(),
+    };
+    const raw = localStorage.getItem(LEADERBOARD_KEY);
+    const list = raw ? JSON.parse(raw) : [];
+    list.unshift(entry);
+    localStorage.setItem(LEADERBOARD_KEY, JSON.stringify(list.slice(0, 40)));
+  } catch {
+    /* ignore */
+  }
+}
+
+function endEndlessRunFailure() {
+  isOver = true;
+  endlessRunStreak = 0;
+  saveEndlessLeaderboardEntry();
+  const chainStr = endlessHiddenChain.map((w) => w.toUpperCase()).join(" → ");
+  const msg = `The answer was ${answer.toUpperCase()}.\n\nFull chain:\n${chainStr}\n\nScore ${endlessRunScore} · Best streak ${endlessBestStreak} · Hints used ${endlessRunHints} · Failed words ${endlessRunWrongWords}`;
+  openModal("Run over", msg);
 }
 
 function computeStarResult() {
@@ -423,30 +646,22 @@ function renderStarRating() {
 
 function updateFormatUi() {
   if (!endlessBtn) return;
+  endlessBtn.textContent = endlessMode ? "STANDARD" : "ENDLESS";
   endlessBtn.dataset.active = endlessMode ? "true" : "false";
   endlessBtn.setAttribute("aria-pressed", endlessMode ? "true" : "false");
+  document.body.dataset.gameMode = endlessMode ? "endless" : "standard";
 }
 
-function finishChainEndless() {
-  showToast("Next chain", 950);
-  currentChain = pickChain();
-  solvedWords = [];
-  hintsLeft = getModeConfig().hints;
-  hintsUsed = 0;
-  guessesUsedTotal = 0;
-  confettiLayerEl.innerHTML = "";
-  celebrationSectionEl.classList.add("hiddenSection");
-  starRatingEl.innerHTML = "";
-  ratingMetaEl.textContent = "";
-  closeModal();
-  prepareNextRound();
+function syncEndlessToolbar() {
+  if (difficultyWrapEl) {
+    difficultyWrapEl.hidden = !!(endlessMode && currentMode === "hard");
+  }
+  if (hintBtn) {
+    hintBtn.style.display = "";
+  }
 }
 
 function finishChain() {
-  if (endlessMode) {
-    finishChainEndless();
-    return;
-  }
   isOver = true;
   chainComplete = true;
   gridEl.classList.add("hiddenSection");
@@ -476,7 +691,7 @@ function launchConfetti() {
   }, 2200);
 }
 
-async function commitGuess() {
+function commitGuessEndless() {
   const guessLower = guesses[row].toLowerCase();
   if (guessLower.length < currentWordLen) {
     showToast("Not enough letters");
@@ -490,8 +705,62 @@ async function commitGuess() {
     showToast("Loading dictionary...", 1200);
     return;
   }
-  const isValid = validWords.has(guessLower);
-  if (!isValid) {
+  if (!isAcceptedGuessWord(guessLower)) {
+    showToast("Not a real word");
+    return;
+  }
+
+  guessesUsedTotal += 1;
+
+  const scored = scoreGuess(guessLower, answer);
+  marks[row] = scored;
+  for (let i = 0; i < currentWordLen; i++) {
+    setKeyState(guessLower[i].toUpperCase(), scored[i]);
+  }
+
+  render();
+
+  if (guessLower === answer) {
+    endlessRunScore += 1;
+    endlessRunStreak += 1;
+    if (endlessRunStreak > endlessBestStreak) endlessBestStreak = endlessRunStreak;
+    showToast("Correct!", 650);
+    endlessWordIndex += 1;
+    window.setTimeout(() => prepareEndlessWordRound(), 450);
+    return;
+  }
+
+  row += 1;
+  if (row >= endlessEffectiveMaxGuesses) {
+    endlessRunWrongWords += 1;
+    endEndlessRunFailure();
+    return;
+  }
+
+  col = 0;
+  render();
+}
+
+async function commitGuess() {
+  if (endlessMode) {
+    commitGuessEndless();
+    return;
+  }
+
+  const guessLower = guesses[row].toLowerCase();
+  if (guessLower.length < currentWordLen) {
+    showToast("Not enough letters");
+    return;
+  }
+  if (!new RegExp(`^[a-z]{${currentWordLen}}$`).test(guessLower)) {
+    showToast(`Use ${currentWordLen} letters (A-Z)`);
+    return;
+  }
+  if (!dictionaryReady) {
+    showToast("Loading dictionary...", 1200);
+    return;
+  }
+  if (!isAcceptedGuessWord(guessLower)) {
     showToast("Not a real word");
     return;
   }
@@ -558,21 +827,27 @@ function handleInput(key) {
 
 function resetChain() {
   currentMode = difficultySelectEl.value || "medium";
-  hintsLeft = getModeConfig().hints;
-  hintsUsed = 0;
-  guessesUsedTotal = 0;
-  solvedWords = [];
-  currentChain = pickChain();
   closeModal();
   confettiLayerEl.innerHTML = "";
   celebrationSectionEl.classList.add("hiddenSection");
   starRatingEl.innerHTML = "";
   ratingMetaEl.textContent = "";
-  prepareNextRound();
+
+  if (endlessMode) {
+    initEndlessGame();
+  } else {
+    hintsLeft = getModeConfig().hints;
+    hintsUsed = 0;
+    guessesUsedTotal = 0;
+    solvedWords = [];
+    currentChain = pickChain();
+    prepareNextRound();
+  }
+
   updateFormatUi();
+  syncEndlessToolbar();
 }
 
-// Init
 buildKeyboard();
 resetChain();
 loadDictionary();
@@ -584,9 +859,10 @@ newGameBtn.addEventListener("click", () => {
 });
 
 endlessBtn?.addEventListener("click", () => {
-  endlessMode = true;
+  endlessMode = !endlessMode;
   resetChain();
 });
+
 chainPlayAgainBtn.addEventListener("click", resetChain);
 playAgainBtn.addEventListener("click", resetChain);
 closeModalBtn.addEventListener("click", closeModal);
@@ -630,6 +906,9 @@ function handleHintClick() {
   col = guesses[row].length;
   hintsLeft -= 1;
   hintsUsed += 1;
+  if (endlessMode) {
+    endlessRunHints += 1;
+  }
   render();
 }
 
@@ -637,6 +916,7 @@ hintBtn.addEventListener("click", handleHintClick);
 
 answerBtn.addEventListener("click", () => {
   if (chainComplete) return;
+  if (isOver) return;
   showToast(`Answer: ${answer.toUpperCase()}`, 1600);
 });
 

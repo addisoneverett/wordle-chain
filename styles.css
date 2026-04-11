@@ -145,6 +145,19 @@ body {
   line-height: 1.4;
 }
 
+.subpageH2 {
+  margin: 0 0 8px;
+  font-size: 16px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--fg);
+}
+
+.subpageH2--spaced {
+  margin-top: 28px;
+}
+
 .leaderboardTableWrap {
   overflow-x: auto;
   border: 1px solid rgba(255, 255, 255, 0.1);
@@ -250,6 +263,65 @@ body {
 
 .board {
   width: min(620px, 100%);
+}
+
+.endlessProgress {
+  margin: 0 0 10px;
+  padding: 0;
+  background: transparent;
+  border: none;
+  border-radius: 0;
+}
+
+.endlessProgress__row {
+  display: flex;
+  align-items: baseline;
+  justify-content: center;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+
+.endlessProgress__count {
+  font-size: 28px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  color: var(--fg);
+}
+
+.endlessProgress__label {
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.endlessProgress__chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  justify-content: center;
+  align-items: center;
+  min-height: 14px;
+}
+
+.endlessProgress__chip {
+  width: 10px;
+  height: 10px;
+  border-radius: 2px;
+  background: var(--green);
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.25);
+}
+
+.endlessSolvedPreview {
+  margin-bottom: 10px;
+}
+
+.endlessProgress__more {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--muted);
+  margin-left: 4px;
 }
 
 .history {
@@ -616,6 +688,7 @@ body {
 .modal__body {
   margin: 0 0 16px;
   color: rgba(255, 255, 255, 0.86);
+  white-space: pre-wrap;
 }
 
 .modal__actions {
