@@ -79,6 +79,10 @@ const closeModalBtn = document.getElementById("closeModalBtn");
 
 const HOW_TO_STORAGE_KEY = "wordleChainHowToDismissed";
 
+function isMobileHowToViewport() {
+  return window.matchMedia("(max-width: 768px)").matches;
+}
+
 function isLocalDevHost() {
   const h = location.hostname;
   return h === "localhost" || h === "127.0.0.1" || h === "[::1]";
@@ -436,7 +440,7 @@ function dismissHowTo() {
   howToOverlay.classList.add("hidden");
   howToOverlay.setAttribute("aria-hidden", "true");
   document.body.classList.remove("howToOpen");
-  if (isLocalDevHost()) return;
+  if (isLocalDevHost() || isMobileHowToViewport()) return;
   try {
     localStorage.setItem(HOW_TO_STORAGE_KEY, "1");
   } catch {
@@ -444,14 +448,11 @@ function dismissHowTo() {
   }
 }
 
-function maybeShowHowTo() {
+function showHowTo() {
   if (!howToOverlay) return;
-  if (!isLocalDevHost()) {
-    try {
-      if (localStorage.getItem(HOW_TO_STORAGE_KEY) === "1") return;
-    } catch {
-      /* show */
-    }
+  if (isHowToOpen()) {
+    howToDismissBtn?.focus();
+    return;
   }
   howToOverlay.classList.remove("hidden");
   howToOverlay.setAttribute("aria-hidden", "false");
@@ -459,6 +460,22 @@ function maybeShowHowTo() {
   requestAnimationFrame(() => {
     howToDismissBtn?.focus();
   });
+}
+
+function maybeShowHowTo() {
+  if (!howToOverlay) return;
+  if (isMobileHowToViewport()) {
+    showHowTo();
+    return;
+  }
+  if (!isLocalDevHost()) {
+    try {
+      if (localStorage.getItem(HOW_TO_STORAGE_KEY) === "1") return;
+    } catch {
+      /* show */
+    }
+  }
+  showHowTo();
 }
 
 function buildSolvedRow(word) {
@@ -1059,6 +1076,15 @@ modalOverlay.addEventListener("click", (e) => {
 });
 
 howToDismissBtn?.addEventListener("click", dismissHowTo);
+keyboardSectionEl?.addEventListener(
+  "click",
+  (e) => {
+    if (!/** @type {HTMLElement} */ (e.target)?.closest?.("#howToHelpBtn")) return;
+    e.preventDefault();
+    showHowTo();
+  },
+  true,
+);
 howToOverlay?.addEventListener("click", (e) => {
   if (e.target === howToOverlay) dismissHowTo();
 });

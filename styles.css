@@ -547,6 +547,7 @@ body {
 
 .keyboard {
   position: relative;
+  z-index: 45;
   width: min(560px, 100%);
   display: flex;
   flex-direction: column;
@@ -563,7 +564,7 @@ body {
 
 .keyboardToolbar__group {
   display: grid;
-  grid-template-columns: repeat(3, auto);
+  grid-template-columns: repeat(4, auto);
   column-gap: 24px;
   row-gap: 6px;
   justify-content: center;
@@ -601,6 +602,28 @@ body {
 .toolbarIconLink__icon {
   display: flex;
   line-height: 0;
+}
+
+button.toolbarIconLink {
+  font: inherit;
+  cursor: pointer;
+}
+
+button.toolbarIconLink:focus-visible {
+  outline: 2px solid var(--yellow);
+  outline-offset: 2px;
+}
+
+.toolbarIconLink--howTo {
+  padding: 0;
+  position: relative;
+  z-index: 1;
+  color: rgba(255, 255, 255, 0.5);
+}
+
+.toolbarIconLink--howTo:hover,
+.toolbarIconLink--howTo:focus-visible {
+  color: rgba(255, 255, 255, 0.72);
 }
 
 .mobileAnswerFlash {
@@ -966,7 +989,7 @@ body.howToOpen {
     letter-spacing: 0.08em;
   }
   .keyboardToolbar__group {
-    column-gap: 18px;
+    column-gap: 14px;
   }
   .toolbarIconLink {
     width: 36px;
@@ -1098,7 +1121,7 @@ body.howToOpen {
     padding: 8px 8px calc(12px + env(safe-area-inset-bottom));
     background: rgba(18, 18, 19, 0.96);
     border-top: 1px solid rgba(255, 255, 255, 0.08);
-    z-index: 20;
+    z-index: 50;
     isolation: isolate;
   }
   .status {
