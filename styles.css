@@ -334,6 +334,16 @@ body {
   opacity: 0.92;
 }
 
+.difficultyToggle:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.difficultyToggle:disabled:hover {
+  opacity: 0.45;
+  color: var(--muted);
+}
+
 .iconButton {
   border: 0;
   background: transparent;

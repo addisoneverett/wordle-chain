@@ -173,6 +173,24 @@ function getModeConfig() {
   return DIFFICULTY[currentMode] || DIFFICULTY.medium;
 }
 
+function hasInProgressGridInput() {
+  for (let r = 0; r < guesses.length; r++) {
+    if ((guesses[r] || "").length > 0) return true;
+    const rowMark = marks[r];
+    if (rowMark?.some((m) => m !== "empty")) return true;
+  }
+  return false;
+}
+
+function isDifficultyLocked() {
+  if (isOver || chainComplete) return false;
+  if (hasInProgressGridInput()) return true;
+  if (isEndlessLike()) {
+    return endlessRunScore > 0 || endlessRunHints > 0 || endlessRunWrongWords > 0;
+  }
+  return solvedWords.length > 0;
+}
+
 function syncDifficultyToggleUi() {
   if (!difficultyToggleEl) return;
   if (!DIFFICULTY_CYCLE.includes(/** @type {"easy"|"medium"|"hard"} */ (currentMode))) {
@@ -181,7 +199,15 @@ function syncDifficultyToggleUi() {
   const labels = { easy: "EASY", medium: "MEDIUM", hard: "HARD" };
   difficultyToggleEl.textContent = labels[currentMode];
   difficultyToggleEl.dataset.mode = currentMode;
-  difficultyToggleEl.setAttribute("aria-label", `Difficulty: ${currentMode}`);
+  const locked = isDifficultyLocked();
+  difficultyToggleEl.disabled = locked;
+  difficultyToggleEl.dataset.locked = locked ? "true" : "false";
+  difficultyToggleEl.setAttribute(
+    "aria-label",
+    locked
+      ? `Difficulty: ${currentMode} (locked until this game ends or New)`
+      : `Difficulty: ${currentMode}`,
+  );
 }
 
 function isEndlessLike() {
@@ -424,6 +450,7 @@ function openModal(title, body) {
   modalBody.textContent = body;
   modalOverlay.classList.remove("hidden");
   modalOverlay.setAttribute("aria-hidden", "false");
+  syncDifficultyToggleUi();
 }
 
 function closeModal() {
@@ -629,19 +656,19 @@ function render() {
     renderHistory();
     updateHintButton();
     updateFrenzyTimerDisplay();
-    return;
-  }
-
-  renderEndlessProgress();
-
-  const targetWins = currentChain.length;
-  const winsLeft = targetWins - solvedWords.length;
-  if (winsLeft <= 0) {
-    statusTextEl.textContent = "Chain complete";
   } else {
-    statusTextEl.textContent = "";
+    renderEndlessProgress();
+
+    const targetWins = currentChain.length;
+    const winsLeft = targetWins - solvedWords.length;
+    if (winsLeft <= 0) {
+      statusTextEl.textContent = "Chain complete";
+    } else {
+      statusTextEl.textContent = "";
+    }
+    updateHintButton();
   }
-  updateHintButton();
+  syncDifficultyToggleUi();
 }
 
 function prepareNextRound() {
@@ -845,6 +872,7 @@ function finishChain() {
   renderStarRating();
   renderHistory();
   launchConfetti();
+  syncDifficultyToggleUi();
 }
 
 function launchConfetti() {
@@ -1140,7 +1168,12 @@ answerBtn.addEventListener("click", () => {
   showToast(`Answer: ${answer.toUpperCase()}`, 1600);
 });
 
-difficultyToggleEl?.addEventListener("click", () => {
+difficultyToggleEl?.addEventListener("click", (e) => {
+  if (isDifficultyLocked()) {
+    e.preventDefault();
+    showToast("Finish this game or tap New to change difficulty.", 1600);
+    return;
+  }
   const i = DIFFICULTY_CYCLE.indexOf(/** @type {"easy"|"medium"|"hard"} */ (currentMode));
   const idx = i >= 0 ? i : 1;
   currentMode = DIFFICULTY_CYCLE[(idx + 1) % DIFFICULTY_CYCLE.length];
