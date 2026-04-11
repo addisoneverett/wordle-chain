@@ -231,6 +231,23 @@ body {
   opacity: 0.82;
 }
 
+.hintBtn {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 6px;
+}
+
+.hintBtn__count {
+  font-size: 0.9em;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.status:empty {
+  margin: 0;
+  min-height: 0;
+}
+
 .answerFab {
   position: fixed;
   right: 16px;

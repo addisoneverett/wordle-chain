@@ -9,11 +9,11 @@ import {
 
 const MAX_GUESSES = 5;
 const MIN_WORD_LEN = 3;
-const MAX_WORD_LEN = 12;
+const MAX_WORD_LEN = 8;
 const DIFFICULTY = {
-  easy: { chainLen: 5, minLen: 3, maxLen: 12, hints: 5 },
-  medium: { chainLen: 5, minLen: 3, maxLen: 12, hints: 3 },
-  hard: { chainLen: 5, minLen: 3, maxLen: 12, hints: 1 },
+  easy: { chainLen: 5, minLen: 3, maxLen: 5, hints: 5 },
+  medium: { chainLen: 5, minLen: 3, maxLen: 6, hints: 3 },
+  hard: { chainLen: 5, minLen: 3, maxLen: 8, hints: 1 },
 };
 
 /** Endless mode: hints and max guess rows per target word. */
@@ -43,6 +43,7 @@ const chainPlayAgainBtn = document.getElementById("chainPlayAgainBtn");
 const confettiLayerEl = document.getElementById("confettiLayer");
 const toastEl = document.getElementById("toast");
 const hintBtn = document.getElementById("hintBtn");
+const hintCountEl = document.getElementById("hintCount");
 const answerBtn = document.getElementById("answerBtn");
 const newGameBtn = document.getElementById("newGameBtn");
 const endlessBtn = document.getElementById("endlessBtn");
@@ -145,6 +146,15 @@ function getModeConfig() {
   return DIFFICULTY[currentMode] || DIFFICULTY.medium;
 }
 
+function updateHintButton() {
+  if (hintCountEl) hintCountEl.textContent = String(hintsLeft);
+  if (hintBtn) {
+    const label = `Hint, ${hintsLeft} remaining`;
+    hintBtn.setAttribute("aria-label", label);
+    hintBtn.title = `${hintsLeft} hint${hintsLeft === 1 ? "" : "s"} left`;
+  }
+}
+
 function pickChain() {
   const cfg = getModeConfig();
   const candidates = WORD_CHAINS.filter((chain) => {
@@ -182,7 +192,7 @@ async function loadDictionary() {
     const words = text
       .split(/\r?\n/)
       .map((w) => w.trim().toLowerCase())
-      .filter((w) => /^[a-z]{3,12}$/.test(w));
+      .filter((w) => /^[a-z]{3,8}$/.test(w));
     validWords = new Set(words);
     wordsByLength = new Map();
     for (let len = MIN_WORD_LEN; len <= MAX_WORD_LEN; len++) wordsByLength.set(len, []);
@@ -464,10 +474,10 @@ function render() {
   }
 
   if (endlessMode) {
-    const gLeft = endlessEffectiveMaxGuesses - row;
-    statusTextEl.textContent = `Score ${endlessRunScore} · Best streak ${endlessBestStreak} · This row ${gLeft}/${endlessEffectiveMaxGuesses} · Hints ${hintsLeft}`;
+    statusTextEl.textContent = `Best streak ${endlessBestStreak}`;
     renderEndlessProgress();
     renderHistory();
+    updateHintButton();
     return;
   }
 
@@ -475,12 +485,12 @@ function render() {
 
   const targetWins = currentChain.length;
   const winsLeft = targetWins - solvedWords.length;
-  const guessesLeft = MAX_GUESSES - row;
   if (winsLeft <= 0) {
     statusTextEl.textContent = "Chain complete";
   } else {
-    statusTextEl.textContent = `Guesses left: ${guessesLeft} - Hints left: ${hintsLeft}`;
+    statusTextEl.textContent = "";
   }
+  updateHintButton();
 }
 
 function prepareNextRound() {
@@ -526,7 +536,7 @@ function prepareEndlessWordRound() {
     const tip = endlessHiddenChain[endlessHiddenChain.length - 1]?.toUpperCase() ?? "";
     openModal(
       "Run complete",
-      `No phrase links lead out from “${tip}” (dead end in the graph).\n\n${endlessHiddenChain.map((w) => w.toUpperCase()).join(" → ")}\n\nScore ${endlessRunScore} · Best streak ${endlessBestStreak}`,
+      `No phrase links lead out from “${tip}” (dead end in the graph).\n\nWords solved this run: ${endlessRunScore}. Best streak: ${endlessBestStreak}.`,
     );
     return;
   }
@@ -602,8 +612,7 @@ function endEndlessRunFailure() {
   isOver = true;
   endlessRunStreak = 0;
   saveEndlessLeaderboardEntry();
-  const chainStr = endlessHiddenChain.map((w) => w.toUpperCase()).join(" → ");
-  const msg = `The answer was ${answer.toUpperCase()}.\n\nFull chain:\n${chainStr}\n\nScore ${endlessRunScore} · Best streak ${endlessBestStreak} · Hints used ${endlessRunHints} · Failed words ${endlessRunWrongWords}`;
+  const msg = `The answer was ${answer.toUpperCase()}.\n\nRun score: ${endlessRunScore}. Best streak: ${endlessBestStreak}. Hints used: ${endlessRunHints}. Failed words: ${endlessRunWrongWords}.`;
   openModal("Run over", msg);
 }
 
